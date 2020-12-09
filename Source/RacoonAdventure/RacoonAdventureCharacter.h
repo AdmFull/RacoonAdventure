@@ -44,13 +44,22 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
 	class UPaperFlipbook* JumpAnimation;
 
-	// The animation to play while idle (standing still)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
-	class UPaperFlipbook* CrouchAnimation;
+	class UPaperFlipbook* FallAnimation;
 
 	// The animation to play while idle (standing still)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
-	class UPaperFlipbook* AtackAnimation;
+	class UPaperFlipbook* CrouchIdleAnimation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
+	class UPaperFlipbook* CrouchWalkAnimation;
+
+	// The animation to play while idle (standing still)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
+	class UPaperFlipbook* SimpleAtackAnimation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
+	class UPaperFlipbook* StrongAtackAnimation;
 
 	// The animation to play while idle (standing still)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
@@ -111,8 +120,18 @@ protected:
 		PLAYER_IDLE,
 		PLAYER_RUNNUNG,
 		PLAYER_JUMP,
-		PLAYER_CROUCH
+		PLAYER_FALLING,
+		PLAYER_CROUCH_IDLE,
+		PLAYER_CROUCH_MOVE,
+		PLAYER_SIMPLE_ATTACK,
+		PLAYER_STRONG_ATTACK
 	} EPlayerState;
 private:
+	FTimerHandle    AnimationDelayTimer;
+	bool bIsSimpleAttacking;
+	void SwitchCrouching();
+	void PlayerJump();
+	void SimpleAttack();
+	void FlipbookAnimationFinished();
 	ARacoonAdventureCharacter::EPlayerState PlayerState;
 };

@@ -74,6 +74,7 @@ ARacoonAdventureCharacter::ARacoonAdventureCharacter()
 	// Enable replication on the Sprite component so animations show up when networked
 	GetSprite()->SetIsReplicated(true);
 	bReplicates = true;
+	bIsSimpleAttacking = false;
 
 	PlayerState = EPlayerState::PLAYER_IDLE;
 }
@@ -88,10 +89,37 @@ void ARacoonAdventureCharacter::UpdateAnimation()
 
 	UPaperFlipbook* DesiredAnimation = IdleAnimation;
 
-	if (PlayerSpeedSqr > 0.0f)
-		PlayerState = PLAYER_IDLE;
+	if (!bIsSimpleAttacking)
+	{
+		if (!GetCharacterMovement()->IsFalling())
+		{
+			if (!GetCharacterMovement()->IsCrouching())
+			{
+				if (PlayerSpeedSqr > 0.0f)
+					PlayerState = PLAYER_RUNNUNG;
+				else
+					PlayerState = PLAYER_IDLE;
+			}
+			else
+			{
+				if (PlayerSpeedSqr > 0.0f)
+					PlayerState = PLAYER_CROUCH_MOVE;
+				else
+					PlayerState = PLAYER_CROUCH_IDLE;
+			}
+		}
+		else if (GetCharacterMovement()->IsFalling())
+		{
+			if (PlayerVelocity.Z > 0.0f)
+				PlayerState = PLAYER_JUMP;
+			if (PlayerVelocity.Z < 0.0f)
+				PlayerState = PLAYER_FALLING;
+		}
+	}
 	else
-		PlayerState = PLAYER_RUNNUNG;
+	{
+		PlayerState = PLAYER_SIMPLE_ATTACK;
+	}
 
 	switch (PlayerState)
 	{
@@ -101,6 +129,21 @@ void ARacoonAdventureCharacter::UpdateAnimation()
 
 	case EPlayerState::PLAYER_RUNNUNG:
 		DesiredAnimation = RunningAnimation;
+		break;
+	case EPlayerState::PLAYER_JUMP:
+		DesiredAnimation = JumpAnimation;
+		break;
+	case EPlayerState::PLAYER_FALLING:
+		DesiredAnimation = FallAnimation;
+		break;
+	case EPlayerState::PLAYER_CROUCH_IDLE:
+		DesiredAnimation = CrouchIdleAnimation;
+		break;
+	case EPlayerState::PLAYER_CROUCH_MOVE:
+		DesiredAnimation = CrouchWalkAnimation;
+		break;
+	case EPlayerState::PLAYER_SIMPLE_ATTACK:
+		DesiredAnimation = SimpleAtackAnimation;
 		break;
 
 	default:
@@ -116,7 +159,6 @@ void ARacoonAdventureCharacter::UpdateAnimation()
 void ARacoonAdventureCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	
 	UpdateCharacter();	
 }
 
@@ -127,9 +169,13 @@ void ARacoonAdventureCharacter::Tick(float DeltaSeconds)
 void ARacoonAdventureCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
 	// Note: the 'Jump' action and the 'MoveRight' axis are bound to actual keys/buttons/sticks in DefaultInput.ini (editable from Project Settings..Input)
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ARacoonAdventureCharacter::PlayerJump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &ARacoonAdventureCharacter::SwitchCrouching);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ARacoonAdventureCharacter::MoveRight);
+
+	PlayerInputComponent->BindAction("SimpleAttack", IE_Pressed, this, &ARacoonAdventureCharacter::SimpleAttack);
+	PlayerInputComponent->BindAction("StrongAttack", IE_Pressed, this, &ARacoonAdventureCharacter::SwitchCrouching);
 
 	PlayerInputComponent->BindTouch(IE_Pressed, this, &ARacoonAdventureCharacter::TouchStarted);
 	PlayerInputComponent->BindTouch(IE_Released, this, &ARacoonAdventureCharacter::TouchStopped);
@@ -153,6 +199,31 @@ void ARacoonAdventureCharacter::TouchStopped(const ETouchIndex::Type FingerIndex
 {
 	// Cease jumping once touch stopped
 	StopJumping();
+}
+
+void ARacoonAdventureCharacter::SwitchCrouching() 
+{  
+	if (GetCharacterMovement()->IsCrouching())
+	{
+		UnCrouch();
+	}
+	else
+	{
+		Crouch();
+	}
+}
+
+void ARacoonAdventureCharacter::PlayerJump()
+{
+	if (GetCharacterMovement()->IsCrouching())
+		UnCrouch();
+	Jump();
+}
+
+void ARacoonAdventureCharacter::SimpleAttack()
+{
+	GetWorld()->GetTimerManager().SetTimer(AnimationDelayTimer, [this]() { bIsSimpleAttacking = false; }, 0.2, 1);
+	bIsSimpleAttacking = true;
 }
 
 void ARacoonAdventureCharacter::UpdateCharacter()
