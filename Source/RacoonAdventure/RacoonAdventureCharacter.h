@@ -8,6 +8,27 @@
 
 class UTextRenderComponent;
 
+UENUM(BlueprintType)
+enum class EPlayerState : uint8 {
+	PLAYER_IDLE,
+	PLAYER_RUNNUNG,
+	PLAYER_JUMP,
+	PLAYER_FALLING,
+	PLAYER_CROUCH_IDLE,
+	PLAYER_CROUCH_MOVE,
+	PLAYER_SIMPLE_ATTACK,
+	PLAYER_STRONG_ATTACK
+};
+
+UENUM(BlueprintType)
+enum class EPlayerStats : uint8 {
+	PLAYER_STRENGTH,
+	PLAYER_ENDURANCE,
+	PLAYER_CHARISMA,
+	PLAYER_INTELLIGENCE,
+	PLAYER_AGILITY
+};
+
 /**
  * This class is the default character for RacoonAdventure, and it is responsible for all
  * physical interaction between the player and the world.
@@ -57,6 +78,21 @@ protected:
 	// The animation to play while idle (standing still)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
 	class UPaperFlipbook* SimpleAtackAnimation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
+	class UPaperFlipbook* SimpleAtackAnimation2;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
+	class UPaperFlipbook* SimpleAtackAnimation3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
+	class UPaperFlipbook* SimpleAtackAnimationAir;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
+	class UPaperFlipbook* SimpleAtackAnimationAir2;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
+	class UPaperFlipbook* SimpleAtackAnimationAir3;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
 	class UPaperFlipbook* StrongAtackAnimation;
@@ -115,23 +151,53 @@ public:
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 
-protected:
-	typedef enum {
-		PLAYER_IDLE,
-		PLAYER_RUNNUNG,
-		PLAYER_JUMP,
-		PLAYER_FALLING,
-		PLAYER_CROUCH_IDLE,
-		PLAYER_CROUCH_MOVE,
-		PLAYER_SIMPLE_ATTACK,
-		PLAYER_STRONG_ATTACK
-	} EPlayerState;
+private:
+	//Character bars
+	float fPlayerHP;
+	float fPlayerMana;
+	float fPlayerStamina;
+
+	int32 uiStrength;
+	int32 uiEndurance;
+	int32 uiCharisma;
+	int32 uiIntelligence;
+	int32 uiAgility;
+public:
+	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
+	float GetPlayerHP()			{ return fPlayerHP; }
+
+	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
+	float GetPlayerMana()		{ return fPlayerMana; }
+
+	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
+	float GetPlayerStamina()	{ return fPlayerStamina; }
+
+	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
+	void SetPlayerHP(float newHP)			{ fPlayerHP = newHP; }
+
+	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
+	void SetPlayerMana(float newMana)		{ fPlayerMana = newMana; }
+
+	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
+	void SetPlayerStamina(float newStamina) { fPlayerStamina = newStamina; }
+
+	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
+	int32 GetPlayerStat(EPlayerStats eStat);
+
+	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
+	void SetPlayerStat(int32 uiNewStat, EPlayerStats eStat);
+
+
 private:
 	FTimerHandle    AnimationDelayTimer;
+	FTimerHandle    ComboAttackTimer;
 	bool bIsSimpleAttacking;
+	bool bIsJumpUp;
+	int32 iSimpleComboState;
+
 	void SwitchCrouching();
 	void PlayerJump();
 	void SimpleAttack();
 	void FlipbookAnimationFinished();
-	ARacoonAdventureCharacter::EPlayerState PlayerState;
+	EPlayerState PlayerState;
 };

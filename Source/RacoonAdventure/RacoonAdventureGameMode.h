@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Blueprint/UserWidget.h"
 #include "GameFramework/GameModeBase.h"
 #include "RacoonAdventureGameMode.generated.h"
 
@@ -18,4 +19,17 @@ class ARacoonAdventureGameMode : public AGameModeBase
 	GENERATED_BODY()
 public:
 	ARacoonAdventureGameMode();
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "UMG Widgets")
+	void ChangeMenuWidget(TSubclassOf<UUserWidget> NewWidgetClass);
+
+protected:
+	virtual void BeginPlay() override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UMG Widgets")
+	TSubclassOf<UUserWidget> StartingWidgetClass;
+
+	UPROPERTY()
+	UUserWidget* CurrentWidget;
 };

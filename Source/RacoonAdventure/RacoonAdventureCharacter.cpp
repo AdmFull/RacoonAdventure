@@ -74,7 +74,14 @@ ARacoonAdventureCharacter::ARacoonAdventureCharacter()
 	// Enable replication on the Sprite component so animations show up when networked
 	GetSprite()->SetIsReplicated(true);
 	bReplicates = true;
+	bIsJumpUp = false;
 	bIsSimpleAttacking = false;
+
+	fPlayerHP = 20.f;
+	fPlayerMana = 20.f;
+	fPlayerStamina = 20.f;
+
+	iSimpleComboState = -1;
 
 	PlayerState = EPlayerState::PLAYER_IDLE;
 }
@@ -96,29 +103,29 @@ void ARacoonAdventureCharacter::UpdateAnimation()
 			if (!GetCharacterMovement()->IsCrouching())
 			{
 				if (PlayerSpeedSqr > 0.0f)
-					PlayerState = PLAYER_RUNNUNG;
+					PlayerState = EPlayerState::PLAYER_RUNNUNG;
 				else
-					PlayerState = PLAYER_IDLE;
+					PlayerState = EPlayerState::PLAYER_IDLE;
 			}
 			else
 			{
 				if (PlayerSpeedSqr > 0.0f)
-					PlayerState = PLAYER_CROUCH_MOVE;
+					PlayerState = EPlayerState::PLAYER_CROUCH_MOVE;
 				else
-					PlayerState = PLAYER_CROUCH_IDLE;
+					PlayerState = EPlayerState::PLAYER_CROUCH_IDLE;
 			}
 		}
 		else if (GetCharacterMovement()->IsFalling())
 		{
 			if (PlayerVelocity.Z > 0.0f)
-				PlayerState = PLAYER_JUMP;
-			if (PlayerVelocity.Z < 0.0f)
-				PlayerState = PLAYER_FALLING;
+				PlayerState = EPlayerState::PLAYER_JUMP;
+			if (PlayerVelocity.Z < 0.0f && !bIsJumpUp)
+				PlayerState = EPlayerState::PLAYER_FALLING;
 		}
 	}
 	else
 	{
-		PlayerState = PLAYER_SIMPLE_ATTACK;
+		PlayerState = EPlayerState::PLAYER_SIMPLE_ATTACK;
 	}
 
 	switch (PlayerState)
@@ -143,7 +150,24 @@ void ARacoonAdventureCharacter::UpdateAnimation()
 		DesiredAnimation = CrouchWalkAnimation;
 		break;
 	case EPlayerState::PLAYER_SIMPLE_ATTACK:
-		DesiredAnimation = SimpleAtackAnimation;
+		if (!GetCharacterMovement()->IsFalling())
+		{
+			switch (iSimpleComboState)
+			{
+			case 0: { DesiredAnimation = SimpleAtackAnimation; } break;
+			case 1: { DesiredAnimation = SimpleAtackAnimation2; } break;
+			case 2: { DesiredAnimation = SimpleAtackAnimation3; } break;
+			}
+		}
+		else
+		{
+			switch (iSimpleComboState)
+			{
+			case 0: { DesiredAnimation = SimpleAtackAnimationAir; } break;
+			case 1: { DesiredAnimation = SimpleAtackAnimationAir2; } break;
+			case 2: { DesiredAnimation = SimpleAtackAnimationAir3; } break;
+			}
+		}
 		break;
 
 	default:
@@ -186,7 +210,8 @@ void ARacoonAdventureCharacter::MoveRight(float Value)
 	/*UpdateChar();*/
 
 	// Apply the input to the character motion
-	AddMovementInput(FVector(1.0f, 0.0f, 0.0f), Value);
+	if(!bIsSimpleAttacking)
+		AddMovementInput(FVector(1.0f, 0.0f, 0.0f), Value);
 }
 
 void ARacoonAdventureCharacter::TouchStarted(const ETouchIndex::Type FingerIndex, const FVector Location)
@@ -218,12 +243,47 @@ void ARacoonAdventureCharacter::PlayerJump()
 	if (GetCharacterMovement()->IsCrouching())
 		UnCrouch();
 	Jump();
+	bIsJumpUp = true;
+	GetWorld()->GetTimerManager().SetTimer(AnimationDelayTimer, [this]() { bIsJumpUp = false; }, 0.3f, 1);
 }
 
 void ARacoonAdventureCharacter::SimpleAttack()
 {
-	GetWorld()->GetTimerManager().SetTimer(AnimationDelayTimer, [this]() { bIsSimpleAttacking = false; }, 0.2, 1);
-	bIsSimpleAttacking = true;
+	float fAttackPower = 1.0;
+	if (!bIsSimpleAttacking && iSimpleComboState < 3)
+	{
+		if(iSimpleComboState < 0) GetWorld()->GetTimerManager().SetTimer(ComboAttackTimer, [this]() { iSimpleComboState = -1; }, 1.0f, 1);
+		if (iSimpleComboState < 3) iSimpleComboState++;
+		GetWorld()->GetTimerManager().SetTimer(AnimationDelayTimer, [this]() { bIsSimpleAttacking = false; }, 0.25f + 0.05f* iSimpleComboState, 1);
+		
+		bIsSimpleAttacking = true;
+	}
+}
+
+void ARacoonAdventureCharacter::SetPlayerStat(int32 uiNewStat, EPlayerStats eStat)
+{
+	switch (eStat)
+	{
+	case EPlayerStats::PLAYER_STRENGTH:		uiStrength = uiNewStat; break;
+	case EPlayerStats::PLAYER_ENDURANCE:		uiEndurance = uiNewStat; break;
+	case EPlayerStats::PLAYER_CHARISMA:		uiCharisma = uiNewStat; break;
+	case EPlayerStats::PLAYER_INTELLIGENCE:	uiIntelligence = uiNewStat; break;
+	case EPlayerStats::PLAYER_AGILITY:		uiAgility = uiNewStat; break;
+	default:   break;
+	}
+}
+
+int32 ARacoonAdventureCharacter::GetPlayerStat(EPlayerStats eStat)
+{
+	switch (eStat)
+	{
+	case EPlayerStats::PLAYER_STRENGTH:		return uiStrength; break;
+	case EPlayerStats::PLAYER_ENDURANCE:	return uiEndurance; break;
+	case EPlayerStats::PLAYER_CHARISMA:		return uiCharisma; break;
+	case EPlayerStats::PLAYER_INTELLIGENCE:	return uiIntelligence; break;
+	case EPlayerStats::PLAYER_AGILITY:		return uiAgility; break;
+	default:								return 999999; break;
+	}
 }
 
 void ARacoonAdventureCharacter::UpdateCharacter()
