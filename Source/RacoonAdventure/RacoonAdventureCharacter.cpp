@@ -73,17 +73,29 @@ ARacoonAdventureCharacter::ARacoonAdventureCharacter()
 
 	// Enable replication on the Sprite component so animations show up when networked
 	GetSprite()->SetIsReplicated(true);
+
 	bReplicates = true;
 	bIsJumpUp = false;
 	bIsSimpleAttacking = false;
 
-	fPlayerHP = 20.f;
-	fPlayerMana = 20.f;
-	fPlayerStamina = 20.f;
-
 	iSimpleComboState = -1;
 
 	PlayerState = EPlayerState::PLAYER_IDLE;
+}
+
+void ARacoonAdventureCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	UWorld* CurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
+	if (CurWorld)
+	{
+		if (CurWorld->GetGameInstance() != nullptr)
+		{
+			//Contains all game parameters
+			cgiGameInstance = Cast<URacoonAdventureGameInstance>(CurWorld->GetGameInstance());
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -115,13 +127,18 @@ void ARacoonAdventureCharacter::UpdateAnimation()
 					PlayerState = EPlayerState::PLAYER_CROUCH_IDLE;
 			}
 		}
-		else if (GetCharacterMovement()->IsFalling())
+		else
 		{
 			if (PlayerVelocity.Z > 0.0f)
 				PlayerState = EPlayerState::PLAYER_JUMP;
 			if (PlayerVelocity.Z < 0.0f && !bIsJumpUp)
 				PlayerState = EPlayerState::PLAYER_FALLING;
 		}
+
+		if (bIsClimbing)
+			PlayerState = EPlayerState::PLAYER_CLIMB_IDLE;
+		if (bIsClimbing && bIsClimbingMove)
+			PlayerState = EPlayerState::PLAYER_CLIMB_MOVE;
 	}
 	else
 	{
@@ -170,6 +187,14 @@ void ARacoonAdventureCharacter::UpdateAnimation()
 		}
 		break;
 
+	case EPlayerState::PLAYER_CLIMB_IDLE:
+		DesiredAnimation = ClimbIdleAnimation;
+		break;
+
+	case EPlayerState::PLAYER_CLIMB_MOVE:
+		DesiredAnimation = ClimbMoveAnimation;
+		break;
+
 	default:
 		break;
 	}
@@ -183,6 +208,7 @@ void ARacoonAdventureCharacter::UpdateAnimation()
 void ARacoonAdventureCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	fDeltaTime = DeltaSeconds;
 	UpdateCharacter();	
 }
 
@@ -196,7 +222,8 @@ void ARacoonAdventureCharacter::SetupPlayerInputComponent(class UInputComponent*
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ARacoonAdventureCharacter::PlayerJump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &ARacoonAdventureCharacter::SwitchCrouching);
-	PlayerInputComponent->BindAxis("MoveRight", this, &ARacoonAdventureCharacter::MoveRight);
+	PlayerInputComponent->BindAxis("CharacterMoveLR", this, &ARacoonAdventureCharacter::CharacterMoveLR);
+	PlayerInputComponent->BindAxis("CharacterMoveUD", this, &ARacoonAdventureCharacter::CharacterMoveUD);
 
 	PlayerInputComponent->BindAction("SimpleAttack", IE_Pressed, this, &ARacoonAdventureCharacter::SimpleAttack);
 	PlayerInputComponent->BindAction("StrongAttack", IE_Pressed, this, &ARacoonAdventureCharacter::SwitchCrouching);
@@ -205,13 +232,23 @@ void ARacoonAdventureCharacter::SetupPlayerInputComponent(class UInputComponent*
 	PlayerInputComponent->BindTouch(IE_Released, this, &ARacoonAdventureCharacter::TouchStopped);
 }
 
-void ARacoonAdventureCharacter::MoveRight(float Value)
+void ARacoonAdventureCharacter::CharacterMoveLR(float Value)
 {
 	/*UpdateChar();*/
-
+	fHorisontalDirection = Value;
+	if (bIsClimbing)
+		LedderMovingMode();
 	// Apply the input to the character motion
-	if(!bIsSimpleAttacking)
+	if(!bIsSimpleAttacking && !bIsClimbing)
 		AddMovementInput(FVector(1.0f, 0.0f, 0.0f), Value);
+	else
+		GetCharacterMovement()->Velocity = FVector(1.f, 0.f, 0.f) * Value;
+}
+
+void ARacoonAdventureCharacter::CharacterMoveUD(float Value)
+{
+	fVerticalDirection = Value;
+	LedderMovingMode();
 }
 
 void ARacoonAdventureCharacter::TouchStarted(const ETouchIndex::Type FingerIndex, const FVector Location)
@@ -242,47 +279,106 @@ void ARacoonAdventureCharacter::PlayerJump()
 {
 	if (GetCharacterMovement()->IsCrouching())
 		UnCrouch();
-	Jump();
-	bIsJumpUp = true;
-	GetWorld()->GetTimerManager().SetTimer(AnimationDelayTimer, [this]() { bIsJumpUp = false; }, 0.3f, 1);
+	
+	if (!bIsClimbing)
+	{
+		Jump();
+		LedderMovingMode();
+	}
 }
 
 void ARacoonAdventureCharacter::SimpleAttack()
 {
 	float fAttackPower = 1.0;
-	if (!bIsSimpleAttacking && iSimpleComboState < 3)
-	{
-		if(iSimpleComboState < 0) GetWorld()->GetTimerManager().SetTimer(ComboAttackTimer, [this]() { iSimpleComboState = -1; }, 1.0f, 1);
-		if (iSimpleComboState < 3) iSimpleComboState++;
+	//if (bIsSimpleAttacking)
+	//{
+		
+		if(iSimpleComboState < 0) GetWorld()->GetTimerManager().SetTimer(ComboAttackTimer, [this]() { iSimpleComboState = -1; GetCharacterMovement()->GravityScale = 2.f; }, 1.0f, 1);
+		if (iSimpleComboState < 3)
+		{
+			GetCharacterMovement()->GravityScale = 1.5f;
+			iSimpleComboState++;
+		}
+		else
+		{
+			if (GetCharacterMovement()->IsFalling())
+			{
+				GetCharacterMovement()->GravityScale = 2.f;
+				GetCharacterMovement()->AddImpulse(FVector(0.f, 0.f, -50000.f), true);
+			}
+		}
 		GetWorld()->GetTimerManager().SetTimer(AnimationDelayTimer, [this]() { bIsSimpleAttacking = false; }, 0.25f + 0.05f* iSimpleComboState, 1);
 		
 		bIsSimpleAttacking = true;
-	}
+	//}
 }
 
-void ARacoonAdventureCharacter::SetPlayerStat(int32 uiNewStat, EPlayerStats eStat)
+//Ladder mode worker
+void ARacoonAdventureCharacter::LedderMovingMode()
 {
-	switch (eStat)
-	{
-	case EPlayerStats::PLAYER_STRENGTH:		uiStrength = uiNewStat; break;
-	case EPlayerStats::PLAYER_ENDURANCE:		uiEndurance = uiNewStat; break;
-	case EPlayerStats::PLAYER_CHARISMA:		uiCharisma = uiNewStat; break;
-	case EPlayerStats::PLAYER_INTELLIGENCE:	uiIntelligence = uiNewStat; break;
-	case EPlayerStats::PLAYER_AGILITY:		uiAgility = uiNewStat; break;
-	default:   break;
-	}
-}
+	FHitResult hrStairs, hrGround;
+	UWorld* wCurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
+	FVector vActorPosition = GetActorLocation();
+	FVector vStairsOutPosition = vActorPosition + FVector(0.f, -50.f, 0.f);
+	bool bTraceResult;
 
-int32 ARacoonAdventureCharacter::GetPlayerStat(EPlayerStats eStat)
-{
-	switch (eStat)
+	if (wCurWorld)
 	{
-	case EPlayerStats::PLAYER_STRENGTH:		return uiStrength; break;
-	case EPlayerStats::PLAYER_ENDURANCE:	return uiEndurance; break;
-	case EPlayerStats::PLAYER_CHARISMA:		return uiCharisma; break;
-	case EPlayerStats::PLAYER_INTELLIGENCE:	return uiIntelligence; break;
-	case EPlayerStats::PLAYER_AGILITY:		return uiAgility; break;
-	default:								return 999999; break;
+		bTraceResult = wCurWorld->LineTraceSingleByChannel(hrStairs, vActorPosition, vStairsOutPosition, ECollisionChannel::ECC_Visibility);
+
+		if (bIsClimbing)
+		{
+			if (fVerticalDirection == 0)
+			{
+				bIsClimbingMove = false;
+			}
+
+			if (bTraceResult && hrStairs.GetActor()->ActorHasTag("stairs"))
+			{
+				GetCharacterMovement()->Velocity = FVector(0.f, 0.f, 0.f);
+				GetCharacterMovement()->GravityScale = 10.f / (cgiGameInstance->GetPlayerStat(EPlayerStats::PLAYER_STRENGTH) + cgiGameInstance->GetPlayerStat(EPlayerStats::PLAYER_ENDURANCE));
+				if (fVerticalDirection != 0)
+				{
+					FVector vNewActorLocation = vActorPosition + (FVector(5.f, 0.f, 0.f) * fHorisontalDirection);
+					vNewActorLocation.Z = vNewActorLocation.Z + (fVerticalDirection * GetCharacterMovement()->MaxWalkSpeed * fDeltaTime * 0.2f) / 2.5f;
+					SetActorLocation(vNewActorLocation, true);
+					bIsClimbingMove = true;
+
+					//If want to jump, check direction to jump
+					if (fHorisontalDirection != 0.f)
+					{
+						FVector vNewImpulse = FVector(100.f, 0.f, 0.f) * fHorisontalDirection;
+						GetCharacterMovement()->AddImpulse(vNewImpulse, true);
+					}
+				}
+			}
+			else
+			{
+				GetCharacterMovement()->GravityScale = 2.f;
+				FVector vNewImpulse = (FVector(0.f, 0.f, 300.f) + fVerticalDirection) + (FVector(50.f, 0.f, 0.f) * fHorisontalDirection);
+				GetCharacterMovement()->AddImpulse(vNewImpulse, true);
+				bIsClimbingMove = false;
+				bIsClimbing = false;
+			}
+		}
+		else
+		{
+			if (fVerticalDirection != 0)
+			{
+				if (bTraceResult)
+				{
+					if (hrStairs.GetActor()->ActorHasTag("stairs"))
+					{
+						bIsClimbing = true;
+						FVector vHitActorLocation = hrStairs.GetActor()->GetActorLocation() + (FVector(5.f, 0.f, 0.f) * fHorisontalDirection);
+						vHitActorLocation.Y = 0.f;
+						SetActorLocation(vHitActorLocation);
+						FVector vNewImpulse = FVector(0.f, 0.f, 50.f);
+						GetCharacterMovement()->AddImpulse(vNewImpulse, true);
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -306,4 +402,14 @@ void ARacoonAdventureCharacter::UpdateCharacter()
 			Controller->SetControlRotation(FRotator(0.0f, 0.0f, 0.0f));
 		}
 	}
+
+	if (GetCharacterMovement()->IsFalling() && !bIsClimbing)
+	{
+		LedderMovingMode();
+	}
+}
+
+ARacoonAdventureGameMode* ARacoonAdventureCharacter::GetCurrentGamemode()
+{
+	return (ARacoonAdventureGameMode*)GetWorld()->GetAuthGameMode();
 }

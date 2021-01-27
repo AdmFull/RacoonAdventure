@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "PaperCharacter.h"
+#include "RacoonAdventureGameInstance.h"
 #include "RacoonAdventureCharacter.generated.h"
 
 class UTextRenderComponent;
@@ -17,16 +18,10 @@ enum class EPlayerState : uint8 {
 	PLAYER_CROUCH_IDLE,
 	PLAYER_CROUCH_MOVE,
 	PLAYER_SIMPLE_ATTACK,
-	PLAYER_STRONG_ATTACK
-};
-
-UENUM(BlueprintType)
-enum class EPlayerStats : uint8 {
-	PLAYER_STRENGTH,
-	PLAYER_ENDURANCE,
-	PLAYER_CHARISMA,
-	PLAYER_INTELLIGENCE,
-	PLAYER_AGILITY
+	PLAYER_STRONG_ATTACK,
+	PLAYER_CLIMB_IDLE,
+	PLAYER_CLIMB_MOVE,
+	PLAYER_DEAD
 };
 
 /**
@@ -77,6 +72,14 @@ protected:
 
 	// The animation to play while idle (standing still)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
+	class UPaperFlipbook* ClimbIdleAnimation;
+
+	// The animation to play while idle (standing still)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
+	class UPaperFlipbook* ClimbMoveAnimation;
+
+	// The animation to play while idle (standing still)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
 	class UPaperFlipbook* SimpleAtackAnimation;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
@@ -115,21 +118,23 @@ protected:
 
 	// The animation to play while idle (standing still)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
-	class UPaperFlipbook* ClimbAnimation;
-
-	// The animation to play while idle (standing still)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
 	class UPaperFlipbook* UseAnimation;
 
 	// The animation to play while idle (standing still)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
 	class UPaperFlipbook* RollAnimation;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
+	class UPaperFlipbook* DeadAnimation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameInstance)
+	URacoonAdventureGameInstance* cgiGameInstance;
+
 	/** Called to choose the correct animation to play based on the character's movement state */
 	void UpdateAnimation();
 
 	/** Called for side to side input */
-	void MoveRight(float Value);
+	void CharacterMoveLR(float Value);
 
 	void UpdateCharacter();
 
@@ -143,6 +148,11 @@ protected:
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
 	// End of APawn interface
 
+	virtual void BeginPlay() override;
+
+	UFUNCTION(BlueprintCallable, Category = "Game")
+		ARacoonAdventureGameMode* GetCurrentGamemode();
+
 public:
 	ARacoonAdventureCharacter();
 
@@ -152,52 +162,28 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 
 private:
-	//Character bars
-	float fPlayerHP;
-	float fPlayerMana;
-	float fPlayerStamina;
-
-	int32 uiStrength;
-	int32 uiEndurance;
-	int32 uiCharisma;
-	int32 uiIntelligence;
-	int32 uiAgility;
-public:
-	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
-	float GetPlayerHP()			{ return fPlayerHP; }
-
-	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
-	float GetPlayerMana()		{ return fPlayerMana; }
-
-	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
-	float GetPlayerStamina()	{ return fPlayerStamina; }
-
-	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
-	void SetPlayerHP(float newHP)			{ fPlayerHP = newHP; }
-
-	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
-	void SetPlayerMana(float newMana)		{ fPlayerMana = newMana; }
-
-	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
-	void SetPlayerStamina(float newStamina) { fPlayerStamina = newStamina; }
-
-	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
-	int32 GetPlayerStat(EPlayerStats eStat);
-
-	UFUNCTION(BlueprintCallable, Category = PlayerLifeState)
-	void SetPlayerStat(int32 uiNewStat, EPlayerStats eStat);
-
-
-private:
 	FTimerHandle    AnimationDelayTimer;
 	FTimerHandle    ComboAttackTimer;
 	bool bIsSimpleAttacking;
 	bool bIsJumpUp;
+	bool bWantToJump = false;
+	float fHorisontalDirection;
+	float fVerticalDirection;
 	int32 iSimpleComboState;
 
 	void SwitchCrouching();
 	void PlayerJump();
 	void SimpleAttack();
+	void LedderMovingMode();
 	void FlipbookAnimationFinished();
 	EPlayerState PlayerState;
+
+private:
+	//Climbing mechanic
+	void CharacterMoveUD(float Value);
+
+	bool bIsClimbing, bIsClimbingMove;
+	float fClibmAx;
+	float fDeltaTime;
+
 };

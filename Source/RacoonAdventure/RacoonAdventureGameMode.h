@@ -30,6 +30,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UMG Widgets")
 	TSubclassOf<UUserWidget> StartingWidgetClass;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UMG Widgets")
 	UUserWidget* CurrentWidget;
 };
