@@ -106,8 +106,6 @@ void ARacoonAdventureCharacter::UpdateAnimation()
 	const FVector PlayerVelocity = GetVelocity();
 	const float PlayerSpeedSqr = PlayerVelocity.SizeSquared();
 
-	UPaperFlipbook* DesiredAnimation = IdleAnimation;
-
 	if (!bIsSimpleAttacking)
 	{
 		if (!GetCharacterMovement()->IsFalling())
@@ -142,67 +140,10 @@ void ARacoonAdventureCharacter::UpdateAnimation()
 	}
 	else
 	{
-		PlayerState = EPlayerState::PLAYER_SIMPLE_ATTACK;
+		PlayerState = EPlayerState::PLAYER_GROUND_ATTACK_0;
 	}
 
-	switch (PlayerState)
-	{
-	case EPlayerState::PLAYER_IDLE:
-		DesiredAnimation = IdleAnimation;
-		break;
-
-	case EPlayerState::PLAYER_RUNNUNG:
-		DesiredAnimation = RunningAnimation;
-		break;
-	case EPlayerState::PLAYER_JUMP:
-		DesiredAnimation = JumpAnimation;
-		break;
-	case EPlayerState::PLAYER_FALLING:
-		DesiredAnimation = FallAnimation;
-		break;
-	case EPlayerState::PLAYER_CROUCH_IDLE:
-		DesiredAnimation = CrouchIdleAnimation;
-		break;
-	case EPlayerState::PLAYER_CROUCH_MOVE:
-		DesiredAnimation = CrouchWalkAnimation;
-		break;
-	case EPlayerState::PLAYER_SIMPLE_ATTACK:
-		if (!GetCharacterMovement()->IsFalling())
-		{
-			switch (iSimpleComboState)
-			{
-			case 0: { DesiredAnimation = SimpleAtackAnimation; } break;
-			case 1: { DesiredAnimation = SimpleAtackAnimation2; } break;
-			case 2: { DesiredAnimation = SimpleAtackAnimation3; } break;
-			}
-		}
-		else
-		{
-			switch (iSimpleComboState)
-			{
-			case 0: { DesiredAnimation = SimpleAtackAnimationAir; } break;
-			case 1: { DesiredAnimation = SimpleAtackAnimationAir2; } break;
-			case 2: { DesiredAnimation = SimpleAtackAnimationAir3; } break;
-			}
-		}
-		break;
-
-	case EPlayerState::PLAYER_CLIMB_IDLE:
-		DesiredAnimation = ClimbIdleAnimation;
-		break;
-
-	case EPlayerState::PLAYER_CLIMB_MOVE:
-		DesiredAnimation = ClimbMoveAnimation;
-		break;
-
-	default:
-		break;
-	}
-
-	if( GetSprite()->GetFlipbook() != DesiredAnimation 	)
-	{
-		GetSprite()->SetFlipbook(DesiredAnimation);
-	}
+	GetSprite()->SetFlipbook(AnimationSet[PlayerState]);
 }
 
 void ARacoonAdventureCharacter::Tick(float DeltaSeconds)
@@ -222,6 +163,9 @@ void ARacoonAdventureCharacter::SetupPlayerInputComponent(class UInputComponent*
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ARacoonAdventureCharacter::PlayerJump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &ARacoonAdventureCharacter::SwitchCrouching);
+	PlayerInputComponent->BindAction("MoveRight", IE_Pressed, this, &ARacoonAdventureCharacter::JerkRight);
+	PlayerInputComponent->BindAction("MoveLeft", IE_Pressed, this, &ARacoonAdventureCharacter::JerkLeft);
+	PlayerInputComponent->BindAction("MoveDown", IE_Pressed, this, &ARacoonAdventureCharacter::ThroughTheFlor);
 	PlayerInputComponent->BindAxis("CharacterMoveLR", this, &ARacoonAdventureCharacter::CharacterMoveLR);
 	PlayerInputComponent->BindAxis("CharacterMoveUD", this, &ARacoonAdventureCharacter::CharacterMoveUD);
 
@@ -277,27 +221,53 @@ void ARacoonAdventureCharacter::SwitchCrouching()
 
 void ARacoonAdventureCharacter::PlayerJump()
 {
-	if (GetCharacterMovement()->IsCrouching())
-		UnCrouch();
-	
+	FVector vActorPosition = GetActorLocation();
+	bool bTraceResult;
+	FHitResult hrPlatrofm;
+
 	if (!bIsClimbing)
 	{
-		Jump();
-		LedderMovingMode();
+		if (GetCharacterMovement()->IsCrouching())
+			UnCrouch();
+
+		if (!TryWallJump())
+		{
+			FVector vTracePosition = FVector(0.f, 0.f, 30.f) + vActorPosition;
+			TraceRay(hrPlatrofm, bTraceResult, vActorPosition, vTracePosition);
+			if (bTraceResult && hrPlatrofm.GetActor()->ActorHasTag("flor"))
+			{
+				FVector vMoveTo = FVector(0.f, 0.f, 100.f);
+				GetCharacterMovement()->AddImpulse(vMoveTo);
+			}
+			else
+			{
+				Jump();
+				LedderMovingMode();
+			}
+		}
+		else
+		{
+
+		}
 	}
 }
 
 void ARacoonAdventureCharacter::SimpleAttack()
 {
 	float fAttackPower = 1.0;
-	//if (bIsSimpleAttacking)
-	//{
+	if (bCanAttack)
+	{
 		
-		if(iSimpleComboState < 0) GetWorld()->GetTimerManager().SetTimer(ComboAttackTimer, [this]() { iSimpleComboState = -1; GetCharacterMovement()->GravityScale = 2.f; }, 1.0f, 1);
 		if (iSimpleComboState < 3)
 		{
 			GetCharacterMovement()->GravityScale = 1.5f;
 			iSimpleComboState++;
+			GetWorld()->GetTimerManager().SetTimer(ComboAttackTimer, [this]() 
+			{ 
+				iSimpleComboState = -1; 
+				GetCharacterMovement()->GravityScale = 2.f;
+				bIsSimpleAttacking = false;
+			}, 0.4f, 1);
 		}
 		else
 		{
@@ -307,79 +277,151 @@ void ARacoonAdventureCharacter::SimpleAttack()
 				GetCharacterMovement()->AddImpulse(FVector(0.f, 0.f, -50000.f), true);
 			}
 		}
-		GetWorld()->GetTimerManager().SetTimer(AnimationDelayTimer, [this]() { bIsSimpleAttacking = false; }, 0.25f + 0.05f* iSimpleComboState, 1);
+		GetWorld()->GetTimerManager().SetTimer(AnimationDelayTimer, [this]() { bIsSimpleAttacking = false; bCanAttack = true; }, 0.25f + 0.05f * iSimpleComboState, 1);
 		
 		bIsSimpleAttacking = true;
-	//}
+	}
 }
 
 //Ladder mode worker
 void ARacoonAdventureCharacter::LedderMovingMode()
 {
-	FHitResult hrStairs, hrGround;
-	UWorld* wCurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
+	FHitResult hrLadder, hrGround;
 	FVector vActorPosition = GetActorLocation();
-	FVector vStairsOutPosition = vActorPosition + FVector(0.f, -50.f, 0.f);
+	FVector vLadderOutPosition = vActorPosition + FVector(0.f, -50.f, 0.f);
 	bool bTraceResult;
 
-	if (wCurWorld)
+	TraceRay(hrLadder, bTraceResult, vActorPosition, vLadderOutPosition);
+
+	if (bIsClimbing)
 	{
-		bTraceResult = wCurWorld->LineTraceSingleByChannel(hrStairs, vActorPosition, vStairsOutPosition, ECollisionChannel::ECC_Visibility);
-
-		if (bIsClimbing)
+		if (fVerticalDirection == 0)
 		{
-			if (fVerticalDirection == 0)
-			{
-				bIsClimbingMove = false;
-			}
+			bIsClimbingMove = false;
+		}
 
-			if (bTraceResult && hrStairs.GetActor()->ActorHasTag("stairs"))
+		if (bTraceResult && hrLadder.GetActor()->ActorHasTag("ladder"))
+		{
+			GetCharacterMovement()->Velocity = FVector(0.f, 0.f, 0.f);
+			GetCharacterMovement()->GravityScale = 10.f / (cgiGameInstance->GetPlayerStat(EPlayerStats::PLAYER_STRENGTH) + cgiGameInstance->GetPlayerStat(EPlayerStats::PLAYER_ENDURANCE));
+			if (fVerticalDirection != 0)
 			{
-				GetCharacterMovement()->Velocity = FVector(0.f, 0.f, 0.f);
-				GetCharacterMovement()->GravityScale = 10.f / (cgiGameInstance->GetPlayerStat(EPlayerStats::PLAYER_STRENGTH) + cgiGameInstance->GetPlayerStat(EPlayerStats::PLAYER_ENDURANCE));
-				if (fVerticalDirection != 0)
+				FVector vNewActorLocation = vActorPosition + (FVector(5.f, 0.f, 0.f) * fHorisontalDirection);
+				vNewActorLocation.Z = vNewActorLocation.Z + (fVerticalDirection * GetCharacterMovement()->MaxWalkSpeed * fDeltaTime * 0.2f) / 2.5f;
+				SetActorLocation(vNewActorLocation, true);
+				bIsClimbingMove = true;
+
+				//If want to jump, check direction to jump
+				if (fHorisontalDirection != 0.f)
 				{
-					FVector vNewActorLocation = vActorPosition + (FVector(5.f, 0.f, 0.f) * fHorisontalDirection);
-					vNewActorLocation.Z = vNewActorLocation.Z + (fVerticalDirection * GetCharacterMovement()->MaxWalkSpeed * fDeltaTime * 0.2f) / 2.5f;
-					SetActorLocation(vNewActorLocation, true);
-					bIsClimbingMove = true;
-
-					//If want to jump, check direction to jump
-					if (fHorisontalDirection != 0.f)
-					{
-						FVector vNewImpulse = FVector(100.f, 0.f, 0.f) * fHorisontalDirection;
-						GetCharacterMovement()->AddImpulse(vNewImpulse, true);
-					}
+					FVector vNewImpulse = FVector(100.f, 0.f, 0.f) * fHorisontalDirection;
+					GetCharacterMovement()->AddImpulse(vNewImpulse, true);
 				}
-			}
-			else
-			{
-				GetCharacterMovement()->GravityScale = 2.f;
-				FVector vNewImpulse = (FVector(0.f, 0.f, 300.f) + fVerticalDirection) + (FVector(50.f, 0.f, 0.f) * fHorisontalDirection);
-				GetCharacterMovement()->AddImpulse(vNewImpulse, true);
-				bIsClimbingMove = false;
-				bIsClimbing = false;
 			}
 		}
 		else
 		{
-			if (fVerticalDirection != 0)
+			GetCharacterMovement()->GravityScale = 2.f;
+			FVector vNewImpulse = (FVector(0.f, 0.f, 300.f) + fVerticalDirection) + (FVector(50.f, 0.f, 0.f) * fHorisontalDirection);
+			GetCharacterMovement()->AddImpulse(vNewImpulse, true);
+			bIsClimbingMove = false;
+			bIsClimbing = false;
+		}
+	}
+	else
+	{
+		if (fVerticalDirection != 0)
+		{
+			if (bTraceResult)
 			{
-				if (bTraceResult)
+				if (hrLadder.GetActor()->ActorHasTag("ladder"))
 				{
-					if (hrStairs.GetActor()->ActorHasTag("stairs"))
-					{
-						bIsClimbing = true;
-						FVector vHitActorLocation = hrStairs.GetActor()->GetActorLocation() + (FVector(5.f, 0.f, 0.f) * fHorisontalDirection);
-						vHitActorLocation.Y = 0.f;
-						SetActorLocation(vHitActorLocation);
-						FVector vNewImpulse = FVector(0.f, 0.f, 50.f);
-						GetCharacterMovement()->AddImpulse(vNewImpulse, true);
-					}
+					bIsClimbing = true;
+					FVector vHitActorLocation = hrLadder.GetActor()->GetActorLocation() + (FVector(5.f, 0.f, 0.f) * fHorisontalDirection);
+					vHitActorLocation.Y = 0.f;
+					SetActorLocation(vHitActorLocation);
+					FVector vNewImpulse = FVector(0.f, 0.f, 50.f);
+					GetCharacterMovement()->AddImpulse(vNewImpulse, true);
 				}
 			}
 		}
 	}
+}
+
+void ARacoonAdventureCharacter::MakeJerk(float jerkForce)
+{
+	if (bCanJerk)
+	{
+		if (iJerkState < 0) GetWorld()->GetTimerManager().SetTimer(JerkTimeoutTimer, [this]() { iJerkState = -1; }, 0.2f, 1);
+		if (++iJerkState > 0)
+		{
+			LaunchCharacter(FVector(jerkForce * fCharacterMoveDirection, 0.f, 0.f), false, true);
+			iJerkState = -1;
+			bCanJerk = false;
+			GetWorld()->GetTimerManager().SetTimer(CanJerkTimer, [this]() { bCanJerk = true; }, 0.6f, 1);
+		}
+	}
+}
+
+void ARacoonAdventureCharacter::TraceRay(FHitResult &hitResult, bool &traceResult, FVector positionFrom, FVector positionTo)
+{
+	UWorld* wCurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
+	if (wCurWorld)
+	{
+		traceResult = wCurWorld->LineTraceSingleByChannel(hitResult, positionFrom, positionTo, ECollisionChannel::ECC_Visibility);
+	}
+}
+
+void ARacoonAdventureCharacter::ThroughTheFlor()
+{
+	FHitResult hrFlor;
+	bool bTraceResult;
+	FVector vActorPosition = GetActorLocation();
+	FVector vFlorOutPosition = vActorPosition + FVector(0.f, 0.f, -30.f);
+
+	TraceRay(hrFlor, bTraceResult, vActorPosition, vFlorOutPosition);
+
+	if (bTraceResult && hrFlor.GetActor()->ActorHasTag("flor"))
+	{
+		if (iThroughFlor < 0) GetWorld()->GetTimerManager().SetTimer(ThroughTheFlorTimer, [this]() { iThroughFlor = -1; }, 0.6f, 1);
+		if (++iThroughFlor > 0)
+		{
+			FVector vNewActorLocation = vActorPosition + FVector(0.f, 0.f, -60.f);
+			SetActorLocation(vNewActorLocation);
+		}
+	}
+}
+
+bool ARacoonAdventureCharacter::TryWallJump()
+{
+	bool bTraceResult;
+	FHitResult hrWall;
+	FVector vInWJDirection;
+	FVector vActorPosition = GetActorLocation();
+
+	if (!bIsWallJumping && !bPostWallJump)
+	{
+		FVector vTracePosition = FVector(20.f * fCharacterMoveDirection, 0.f, 0.f) + vActorPosition;
+		TraceRay(hrWall, bTraceResult, vActorPosition, vTracePosition);
+
+		if (bTraceResult && hrWall.GetActor()->ActorHasTag("wall_jumpable"))
+		{
+			if (GetCharacterMovement()->IsFalling())
+			{
+				bIsWallJumping = bPostWallJump = true;
+				vInWJLocation = vActorPosition;
+				if (vActorPosition.X > hrWall.GetActor()->GetActorLocation().X)
+					vInWJDirection = FVector(500.f, 0.f, 500.f);
+				else
+					vInWJDirection = FVector(-500.f, 0.f, 500.f);
+
+				LaunchCharacter(vInWJDirection, true, true);
+				bIsWallJumping = bPostWallJump = false;
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 void ARacoonAdventureCharacter::UpdateCharacter()
@@ -396,10 +438,12 @@ void ARacoonAdventureCharacter::UpdateCharacter()
 		if (TravelDirection < 0.0f)
 		{
 			Controller->SetControlRotation(FRotator(0.0, 180.0f, 0.0f));
+			fCharacterMoveDirection = -1.f;
 		}
 		else if (TravelDirection > 0.0f)
 		{
 			Controller->SetControlRotation(FRotator(0.0f, 0.0f, 0.0f));
+			fCharacterMoveDirection = 1.f;
 		}
 	}
 
