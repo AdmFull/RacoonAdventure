@@ -9,6 +9,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "Camera/CameraComponent.h"
+#include "RA_DamageActor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(SideScrollerCharacter, Log, All);
 
@@ -65,12 +66,6 @@ ARacoonAdventureCharacter::ARacoonAdventureCharacter()
 	// behavior on the edge of a ledge versus inclines by setting this to true or false
 	GetCharacterMovement()->bUseFlatBaseForFloorChecks = true;
 
-    // 	TextComponent = CreateDefaultSubobject<UTextRenderComponent>(TEXT("IncarGear"));
-    // 	TextComponent->SetRelativeScale3D(FVector(3.0f, 3.0f, 3.0f));
-    // 	TextComponent->SetRelativeLocation(FVector(35.0f, 5.0f, 20.0f));
-    // 	TextComponent->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
-    // 	TextComponent->SetupAttachment(RootComponent);
-
 	// Enable replication on the Sprite component so animations show up when networked
 	GetSprite()->SetIsReplicated(true);
 
@@ -95,6 +90,12 @@ void ARacoonAdventureCharacter::BeginPlay()
 			//Contains all game parameters
 			cgiGameInstance = Cast<URacoonAdventureGameInstance>(CurWorld->GetGameInstance());
 		}
+	}
+
+	if (DamageActorBlueprintPtr)
+	{
+		DamageActorClass = DamageActorBlueprintPtr->GetSuperClass();
+		DamageActorPtr = Cast<ARA_DamageActor>(DamageActorBlueprintPtr->GetDefaultObject());
 	}
 }
 
@@ -260,14 +261,26 @@ void ARacoonAdventureCharacter::SimpleAttack()
 		
 		if (iSimpleComboState < 3)
 		{
-			GetCharacterMovement()->GravityScale = 1.5f;
-			iSimpleComboState++;
-			GetWorld()->GetTimerManager().SetTimer(ComboAttackTimer, [this]() 
-			{ 
-				iSimpleComboState = -1; 
-				GetCharacterMovement()->GravityScale = 2.f;
-				bIsSimpleAttacking = false;
-			}, 0.4f, 1);
+			if (DamageActorClass)
+			{
+				UWorld* wCurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
+				FVector vActorPosition = GetActorLocation();
+				FVector vNewActorPosition(vActorPosition + FVector(50.f, 0.f, 0.f));
+				FActorSpawnParameters SpawnInfo;
+				SpawnInfo.Owner = this;
+				//SpawnInfo.Instigator = Instigator;
+				wCurWorld->SpawnActor<ARA_DamageActor>(DamageActorClass, vNewActorPosition, FRotator(0.f, 0.f, 0.f), SpawnInfo);
+
+				GetCharacterMovement()->GravityScale = 1.5f;
+				iSimpleComboState++;
+				GetWorld()->GetTimerManager().SetTimer(ComboAttackTimer, [this]()
+				{
+					iSimpleComboState = -1;
+					GetCharacterMovement()->GravityScale = 2.f;
+					bIsSimpleAttacking = false;
+				}, 0.4f, 1);
+				
+			}
 		}
 		else
 		{

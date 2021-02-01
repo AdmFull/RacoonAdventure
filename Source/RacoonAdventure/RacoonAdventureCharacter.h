@@ -5,8 +5,7 @@
 #include "CoreMinimal.h"
 #include "PaperCharacter.h"
 #include "RacoonAdventureGameInstance.h"
-#include "string"
-#include "map"
+#include "Templates/SubclassOf.h"
 #include "RacoonAdventureCharacter.generated.h"
 
 class UTextRenderComponent;
@@ -58,8 +57,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
 		TMap<EPlayerState, class UPaperFlipbook*> AnimationSet;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameInstance)
-	URacoonAdventureGameInstance* cgiGameInstance;
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = GameInstance)
+		URacoonAdventureGameInstance* cgiGameInstance;
+
+	UPROPERTY(EditAnywhere, Category = Animations)
+		TSubclassOf<class ARA_DamageActor> DamageActorBlueprintPtr;
+
+	class ARA_DamageActor* DamageActorPtr;
+	UClass* DamageActorClass;
 
 	/** Called to choose the correct animation to play based on the character's movement state */
 	void UpdateAnimation();
