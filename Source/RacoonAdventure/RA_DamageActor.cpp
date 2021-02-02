@@ -14,15 +14,36 @@ ARA_DamageActor::ARA_DamageActor(const FObjectInitializer& ObjectInitializer) : 
 	PrimaryActorTick.bCanEverTick = true;
 
 	SphereCollision = ObjectInitializer.CreateDefaultSubobject<USphereComponent>(this, FName("CollisionSphere"));
-	SphereCollision->InitSphereRadius(fSphereRadius);
+	//SphereCollision->InitSphereRadius(fSphereRadius);
 	//SphereCollision->SetSimulatePhysics(true);
 	SphereCollision->SetCollisionProfileName(FName("Trigger"));
 	SphereCollision->Mobility = EComponentMobility::Movable;
 	SphereCollision->OnComponentBeginOverlap.AddDynamic(this, &ARA_DamageActor::OnBoxBeginOverlap);
 	RootComponent = SphereCollision;
 
-	ActorFlipbook = CreateOptionalDefaultSubobject<UPaperFlipbookComponent>(FName("DamageObjectSprite"));
-	ActorFlipbook->SetupAttachment(RootComponent);
+	ActorFlipbook = nullptr;
+	SetActorTickEnabled(true);
+
+	//ActorFlipbook = CreateOptionalDefaultSubobject<UPaperFlipbookComponent>(FName("DamageObjectSprite"));
+	//ActorFlipbook->SetupAttachment(RootComponent);
+}
+
+void ARA_DamageActor::InitializeDamage(FVector ImpulseDirection, float DefaultDamage, float DamageRadius, float Lifetime)
+{
+	vImpulseDirection = ImpulseDirection;
+	fDefaultDamage = DefaultDamage;
+	fSphereRadius = DamageRadius;
+	fLifetimeTime = Lifetime;
+	SphereCollision->InitSphereRadius(fSphereRadius);
+	bIsInitialized = true;
+}
+
+void ARA_DamageActor::MigrateFrom(ARA_DamageActor* parent)
+{
+	this->SphereCollision = parent->SphereCollision;
+	RootComponent = SphereCollision;
+	this->ActorFlipbook = parent->ActorFlipbook;
+	//ActorFlipbook->SetupAttachment(RootComponent);
 }
 
 // Called when the game starts or when spawned
@@ -33,7 +54,14 @@ void ARA_DamageActor::BeginPlay()
 	/*UWorld* CurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
 	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(CurWorld, 0);
 	SetActorLocation(PlayerPawn->GetActorLocation());*/
-	SphereCollision->AddImpulse(FVector(100.f, 0.f, 0.f), NAME_None, true);
+	//SphereCollision->AddImpulse(FVector(100.f, 0.f, 0.f), NAME_None, true);
+
+	GetWorld()->GetTimerManager().SetTimer(LifetimeTimer, [this]()
+	{
+		//DrawDebugSphere(GetWorld(), GetActorLocation(), fSphereRadius, 20, FColor::Purple, false, -1, 0, 1);
+		Destroy();
+	}, fLifetimeTime, 1);
+	bIsInitialized = false;
 }
 
 // Called every frame
@@ -49,6 +77,7 @@ void ARA_DamageActor::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AAc
 	if ((OtherActor != nullptr) && (OtherActor != this) && (OtherComp != nullptr))
 	{
 		UGameplayStatics::ApplyDamage(OtherActor, fDefaultDamage, NULL, NULL, NULL);
+		DrawDebugSphere(GetWorld(), GetActorLocation(), fSphereRadius, 20, FColor::Purple, false, -1, 0, 1);
 		Destroy();
 	}
 }

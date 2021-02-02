@@ -16,6 +16,10 @@ public:
 	// Sets default values for this actor's properties
 	ARA_DamageActor(const FObjectInitializer& ObjectInitializer);
 
+	void InitializeDamage(FVector ImpulseDirection, float DefaultDamage, float DamageRadius, float Lifetime);
+
+	void MigrateFrom(ARA_DamageActor* parent);
+
 	UFUNCTION()
 		void OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
@@ -25,18 +29,24 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Sprite, meta = (AllowPrivateAccess = "true"))
 		class UPaperFlipbookComponent* ActorFlipbook;
 
+	FTimerHandle    LifetimeTimer;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	float fSphereRadius = 10.f;
+	float fSphereRadius = 0.f;
 
-	float fDefaultDamage = 10.f;
+	float fDefaultDamage = 0.f;
 
-	float fActorMoveDirection = 0.f;
+	float fLifetimeTime = 1.0f;
+
+	FVector vImpulseDirection;
 
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+private:
+	bool bIsInitialized = false;
 };

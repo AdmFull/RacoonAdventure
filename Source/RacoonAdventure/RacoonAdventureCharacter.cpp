@@ -10,6 +10,8 @@
 #include "GameFramework/Controller.h"
 #include "Camera/CameraComponent.h"
 #include "RA_DamageActor.h"
+#include "DrawDebugHelpers.h"
+#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(SideScrollerCharacter, Log, All);
 
@@ -94,8 +96,7 @@ void ARacoonAdventureCharacter::BeginPlay()
 
 	if (DamageActorBlueprintPtr)
 	{
-		DamageActorClass = DamageActorBlueprintPtr->GetSuperClass();
-		DamageActorPtr = Cast<ARA_DamageActor>(DamageActorBlueprintPtr->GetDefaultObject());
+		DamageActorPtr = DamageActorBlueprintPtr->GetDefaultObject<ARA_DamageActor>();
 	}
 }
 
@@ -181,6 +182,7 @@ void ARacoonAdventureCharacter::CharacterMoveLR(float Value)
 {
 	/*UpdateChar();*/
 	fHorisontalDirection = Value;
+
 	if (bIsClimbing)
 		LedderMovingMode();
 	// Apply the input to the character motion
@@ -256,42 +258,45 @@ void ARacoonAdventureCharacter::PlayerJump()
 void ARacoonAdventureCharacter::SimpleAttack()
 {
 	float fAttackPower = 1.0;
+
 	if (bCanAttack)
 	{
-		
 		if (iSimpleComboState < 3)
 		{
-			if (DamageActorClass)
-			{
-				UWorld* wCurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
-				FVector vActorPosition = GetActorLocation();
-				FVector vNewActorPosition(vActorPosition + FVector(50.f, 0.f, 0.f));
-				FActorSpawnParameters SpawnInfo;
-				SpawnInfo.Owner = this;
-				//SpawnInfo.Instigator = Instigator;
-				wCurWorld->SpawnActor<ARA_DamageActor>(DamageActorClass, vNewActorPosition, FRotator(0.f, 0.f, 0.f), SpawnInfo);
+			UWorld* wCurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
+			FVector vActorPosition = GetActorLocation();
+			FVector vActorDirection = FVector(30.f * fCharacterMoveDirection, 0.f, 30.f * fVerticalDirection);
+			FVector vNewActorPosition(vActorPosition + vActorDirection);
 
-				GetCharacterMovement()->GravityScale = 1.5f;
-				iSimpleComboState++;
-				GetWorld()->GetTimerManager().SetTimer(ComboAttackTimer, [this]()
-				{
-					iSimpleComboState = -1;
-					GetCharacterMovement()->GravityScale = 2.f;
-					bIsSimpleAttacking = false;
-				}, 0.4f, 1);
-				
-			}
-		}
-		else
-		{
-			if (GetCharacterMovement()->IsFalling())
+			if (DamageActorPtr)
 			{
-				GetCharacterMovement()->GravityScale = 2.f;
-				GetCharacterMovement()->AddImpulse(FVector(0.f, 0.f, -50000.f), true);
+				DamageActorClass = DamageActorPtr->StaticClass();
+
+				if (DamageActorClass)
+				{
+					FTransform SpawnTransform(vNewActorPosition);
+					//ARA_DamageActor* aSpawningObject =  wCurWorld->SpawnActor<ARA_DamageActor>(ARA_DamageActor::StaticClass(), vNewActorPosition, FRotator(0.f, 0.f, 0.f), SpawnInfo);
+					ARA_DamageActor* aSpawningObject = Cast<ARA_DamageActor>(UGameplayStatics::BeginDeferredActorSpawnFromClass(this, DamageActorBlueprintPtr, SpawnTransform));
+					if (aSpawningObject)
+					{
+						aSpawningObject->InitializeDamage(vActorDirection, 10.f, 10.f, 0.5);
+						UGameplayStatics::FinishSpawningActor(aSpawningObject, SpawnTransform);
+						DrawDebugPoint(wCurWorld, vNewActorPosition, 10.f, FColor::Red, false, 5.f);
+					}
+
+					GetCharacterMovement()->GravityScale = 1.5f;
+					iSimpleComboState++;
+					GetWorld()->GetTimerManager().SetTimer(ComboAttackTimer, [this]()
+					{
+						iSimpleComboState = -1;
+						GetCharacterMovement()->GravityScale = 2.f;
+						bIsSimpleAttacking = false;
+					}, 0.4f, 1);
+				}
 			}
 		}
 		GetWorld()->GetTimerManager().SetTimer(AnimationDelayTimer, [this]() { bIsSimpleAttacking = false; bCanAttack = true; }, 0.25f + 0.05f * iSimpleComboState, 1);
-		
+
 		bIsSimpleAttacking = true;
 	}
 }
@@ -378,9 +383,11 @@ void ARacoonAdventureCharacter::MakeJerk(float jerkForce)
 
 void ARacoonAdventureCharacter::TraceRay(FHitResult &hitResult, bool &traceResult, FVector positionFrom, FVector positionTo)
 {
+
 	UWorld* wCurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
 	if (wCurWorld)
 	{
+		DrawDebugLine(wCurWorld, positionFrom, positionTo, FColor::Cyan, false, 1.f);
 		traceResult = wCurWorld->LineTraceSingleByChannel(hitResult, positionFrom, positionTo, ECollisionChannel::ECC_Visibility);
 	}
 }
