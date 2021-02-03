@@ -63,9 +63,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Animations)
 		TSubclassOf<class ARA_DamageActor> DamageActorBlueprintPtr;
 
-	class ARA_DamageActor* DamageActorPtr;
-	UClass* DamageActorClass;
-
 	/** Called to choose the correct animation to play based on the character's movement state */
 	void UpdateAnimation();
 

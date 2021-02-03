@@ -93,11 +93,6 @@ void ARacoonAdventureCharacter::BeginPlay()
 			cgiGameInstance = Cast<URacoonAdventureGameInstance>(CurWorld->GetGameInstance());
 		}
 	}
-
-	if (DamageActorBlueprintPtr)
-	{
-		DamageActorPtr = DamageActorBlueprintPtr->GetDefaultObject<ARA_DamageActor>();
-	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -265,34 +260,29 @@ void ARacoonAdventureCharacter::SimpleAttack()
 		{
 			UWorld* wCurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
 			FVector vActorPosition = GetActorLocation();
-			FVector vActorDirection = FVector(30.f * fCharacterMoveDirection, 0.f, 30.f * fVerticalDirection);
+			FVector vActorDirection = FVector(50.f * fCharacterMoveDirection, 0.f, 50.f * fVerticalDirection);
 			FVector vNewActorPosition(vActorPosition + vActorDirection);
 
-			if (DamageActorPtr)
+
+			if (DamageActorBlueprintPtr)
 			{
-				DamageActorClass = DamageActorPtr->StaticClass();
-
-				if (DamageActorClass)
+				FActorSpawnParameters SpawnInfo;
+				SpawnInfo.Owner = this;
+				SpawnInfo.Instigator = UGameplayStatics::GetPlayerPawn(this, 0);
+				ARA_DamageActor* aSpawningObject = wCurWorld->SpawnActor<ARA_DamageActor>(DamageActorBlueprintPtr, vNewActorPosition, FRotator(0.f, 0.f, 0.f), SpawnInfo);
+				if (aSpawningObject)
 				{
-					FTransform SpawnTransform(vNewActorPosition);
-					//ARA_DamageActor* aSpawningObject =  wCurWorld->SpawnActor<ARA_DamageActor>(ARA_DamageActor::StaticClass(), vNewActorPosition, FRotator(0.f, 0.f, 0.f), SpawnInfo);
-					ARA_DamageActor* aSpawningObject = Cast<ARA_DamageActor>(UGameplayStatics::BeginDeferredActorSpawnFromClass(this, DamageActorBlueprintPtr, SpawnTransform));
-					if (aSpawningObject)
-					{
-						aSpawningObject->InitializeDamage(vActorDirection, 10.f, 10.f, 0.5);
-						UGameplayStatics::FinishSpawningActor(aSpawningObject, SpawnTransform);
-						DrawDebugPoint(wCurWorld, vNewActorPosition, 10.f, FColor::Red, false, 5.f);
-					}
-
-					GetCharacterMovement()->GravityScale = 1.5f;
-					iSimpleComboState++;
-					GetWorld()->GetTimerManager().SetTimer(ComboAttackTimer, [this]()
-					{
-						iSimpleComboState = -1;
-						GetCharacterMovement()->GravityScale = 2.f;
-						bIsSimpleAttacking = false;
-					}, 0.4f, 1);
+					aSpawningObject->InitializeDamage(vActorDirection, 10.f, 10.f, 0.5);
 				}
+
+				GetCharacterMovement()->GravityScale = 1.5f;
+				iSimpleComboState++;
+				GetWorld()->GetTimerManager().SetTimer(ComboAttackTimer, [this]()
+				{
+					iSimpleComboState = -1;
+					GetCharacterMovement()->GravityScale = 2.f;
+					bIsSimpleAttacking = false;
+				}, 0.4f, 1);
 			}
 		}
 		GetWorld()->GetTimerManager().SetTimer(AnimationDelayTimer, [this]() { bIsSimpleAttacking = false; bCanAttack = true; }, 0.25f + 0.05f * iSimpleComboState, 1);

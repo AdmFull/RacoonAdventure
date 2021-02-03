@@ -21,11 +21,11 @@ ARA_DamageActor::ARA_DamageActor(const FObjectInitializer& ObjectInitializer) : 
 	SphereCollision->OnComponentBeginOverlap.AddDynamic(this, &ARA_DamageActor::OnBoxBeginOverlap);
 	RootComponent = SphereCollision;
 
-	ActorFlipbook = nullptr;
+	ActorFlipbook = ObjectInitializer.CreateOptionalDefaultSubobject<UPaperFlipbookComponent>(this, TEXT("DefaultAttackAnimation"));
+	ActorFlipbook->SetupAttachment(RootComponent);
 	SetActorTickEnabled(true);
 
 	//ActorFlipbook = CreateOptionalDefaultSubobject<UPaperFlipbookComponent>(FName("DamageObjectSprite"));
-	//ActorFlipbook->SetupAttachment(RootComponent);
 }
 
 void ARA_DamageActor::InitializeDamage(FVector ImpulseDirection, float DefaultDamage, float DamageRadius, float Lifetime)
@@ -35,7 +35,11 @@ void ARA_DamageActor::InitializeDamage(FVector ImpulseDirection, float DefaultDa
 	fSphereRadius = DamageRadius;
 	fLifetimeTime = Lifetime;
 	SphereCollision->InitSphereRadius(fSphereRadius);
-	bIsInitialized = true;
+	
+	GetWorld()->GetTimerManager().SetTimer(LifetimeTimer, [this]()
+	{
+		Destroy();
+	}, fLifetimeTime, 1);
 }
 
 void ARA_DamageActor::MigrateFrom(ARA_DamageActor* parent)
@@ -55,13 +59,6 @@ void ARA_DamageActor::BeginPlay()
 	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(CurWorld, 0);
 	SetActorLocation(PlayerPawn->GetActorLocation());*/
 	//SphereCollision->AddImpulse(FVector(100.f, 0.f, 0.f), NAME_None, true);
-
-	GetWorld()->GetTimerManager().SetTimer(LifetimeTimer, [this]()
-	{
-		//DrawDebugSphere(GetWorld(), GetActorLocation(), fSphereRadius, 20, FColor::Purple, false, -1, 0, 1);
-		Destroy();
-	}, fLifetimeTime, 1);
-	bIsInitialized = false;
 }
 
 // Called every frame
@@ -76,8 +73,10 @@ void ARA_DamageActor::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AAc
 {
 	if ((OtherActor != nullptr) && (OtherActor != this) && (OtherComp != nullptr))
 	{
-		UGameplayStatics::ApplyDamage(OtherActor, fDefaultDamage, NULL, NULL, NULL);
-		DrawDebugSphere(GetWorld(), GetActorLocation(), fSphereRadius, 20, FColor::Purple, false, -1, 0, 1);
+		if (GetOwner() != OtherActor)
+		{
+			UGameplayStatics::ApplyDamage(OtherActor, fDefaultDamage, NULL, NULL, NULL);
+		}
 		Destroy();
 	}
 }
