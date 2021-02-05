@@ -8,8 +8,6 @@
 #include "Templates/SubclassOf.h"
 #include "RacoonAdventureCharacter.generated.h"
 
-class UTextRenderComponent;
-
 UENUM(BlueprintType)
 enum class EPlayerState : uint8 {
 	PLAYER_DEFAULT,
@@ -77,6 +75,9 @@ protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
 	// End of APawn interface
+
+	UFUNCTION()
+		void OnTakeAnyDamage(AActor* DamagedActor, float Damage, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
 
 	virtual void BeginPlay() override;
 

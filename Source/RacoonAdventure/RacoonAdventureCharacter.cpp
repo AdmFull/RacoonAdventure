@@ -93,6 +93,12 @@ void ARacoonAdventureCharacter::BeginPlay()
 			cgiGameInstance = Cast<URacoonAdventureGameInstance>(CurWorld->GetGameInstance());
 		}
 	}
+
+	/*FScriptDelegate DamageDelegate;
+	DamageDelegate.BindUFunction(this, FName("OnTakeAnyDamage"));
+	GetOwner()->OnTakeAnyDamage.AddUnique(DamageDelegate);*/
+
+	GetOwner()->OnTakeAnyDamage.AddDynamic(this, &ARacoonAdventureCharacter::OnTakeAnyDamage);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -147,7 +153,15 @@ void ARacoonAdventureCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	fDeltaTime = DeltaSeconds;
-	UpdateCharacter();	
+	UpdateCharacter();
+
+	UWorld* CurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
+	if (CurWorld)
+	{
+		UCapsuleComponent *uCapComp = GetCapsuleComponent();
+		DrawDebugCapsule(CurWorld, uCapComp->GetCenterOfMass(), uCapComp->GetScaledCapsuleHalfHeight(), uCapComp->GetScaledCapsuleRadius(), uCapComp->GetComponentQuat(), FColor::Blue);
+	}
+	//GetCapsuleComponent()->GetTra
 }
 
 
@@ -171,6 +185,11 @@ void ARacoonAdventureCharacter::SetupPlayerInputComponent(class UInputComponent*
 
 	PlayerInputComponent->BindTouch(IE_Pressed, this, &ARacoonAdventureCharacter::TouchStarted);
 	PlayerInputComponent->BindTouch(IE_Released, this, &ARacoonAdventureCharacter::TouchStopped);
+}
+
+void ARacoonAdventureCharacter::OnTakeAnyDamage(AActor* DamagedActor, float Damage, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser)
+{
+	float fuckMyBrain = Damage;
 }
 
 void ARacoonAdventureCharacter::CharacterMoveLR(float Value)
@@ -252,7 +271,7 @@ void ARacoonAdventureCharacter::PlayerJump()
 
 void ARacoonAdventureCharacter::SimpleAttack()
 {
-	float fAttackPower = 1.0;
+	FVector vActorDirection;
 
 	if (bCanAttack)
 	{
@@ -260,19 +279,24 @@ void ARacoonAdventureCharacter::SimpleAttack()
 		{
 			UWorld* wCurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
 			FVector vActorPosition = GetActorLocation();
-			FVector vActorDirection = FVector(50.f * fCharacterMoveDirection, 0.f, 50.f * fVerticalDirection);
+
+			if (fHorisontalDirection != 0.f || fVerticalDirection != 0.f)
+				vActorDirection = FVector(10.f * fHorisontalDirection, 0.f, 10.f * fVerticalDirection);
+			else
+				vActorDirection = FVector(10.f * fCharacterMoveDirection, 0.f, 10.f * fVerticalDirection);
+			
 			FVector vNewActorPosition(vActorPosition + vActorDirection);
 
+			DrawDebugLine(wCurWorld, vActorPosition, vNewActorPosition, FColor::Red, false, 1.f);
 
 			if (DamageActorBlueprintPtr)
 			{
 				FActorSpawnParameters SpawnInfo;
 				SpawnInfo.Owner = this;
-				SpawnInfo.Instigator = UGameplayStatics::GetPlayerPawn(this, 0);
 				ARA_DamageActor* aSpawningObject = wCurWorld->SpawnActor<ARA_DamageActor>(DamageActorBlueprintPtr, vNewActorPosition, FRotator(0.f, 0.f, 0.f), SpawnInfo);
 				if (aSpawningObject)
 				{
-					aSpawningObject->InitializeDamage(vActorDirection, 10.f, 10.f, 0.5);
+					aSpawningObject->InitializeDamage(vActorDirection, 10.f, 5.f, 2.01);
 				}
 
 				GetCharacterMovement()->GravityScale = 1.5f;
