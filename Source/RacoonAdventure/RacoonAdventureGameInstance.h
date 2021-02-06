@@ -29,6 +29,7 @@ private:
 	float fPlayerStamina, fMaxPlayerStamina;
 
 	int32 uiLevel;
+	int64 uiExperience;
 	int32 uiStrength;
 	int32 uiEndurance;
 	int32 uiCharisma;
@@ -48,6 +49,12 @@ private:
 
 public:
 	virtual void Init() override;
+
+	UFUNCTION(BlueprintCallable, Category = GameSaveLoad)
+		void SaveSync(FString SlotNameString, int32 UserIndexInt32);
+
+	UFUNCTION(BlueprintCallable, Category = GameSaveLoad)
+		void LoadSync(FString SlotNameString, int32 UserIndexInt32);
 
 public:
 

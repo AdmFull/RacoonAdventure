@@ -2,6 +2,9 @@
 
 
 #include "RacoonAdventureGameInstance.h"
+#include "RacoonAdventureCharacter.h"
+#include "Kismet/GameplayStatics.h"
+#include "RA_SaveGame.h"
 
 void URacoonAdventureGameInstance::Init()
 {
@@ -161,5 +164,65 @@ void URacoonAdventureGameInstance::RegenerationHandler()
 		RegenerateHP();
 		RegenerateMana();
 		RegenerateStamina();
+	}
+}
+
+void URacoonAdventureGameInstance::SaveSync(FString SlotNameString, int32 UserIndexInt32)
+{
+	if (URA_SaveGame* SaveGameInstance = Cast<URA_SaveGame>(UGameplayStatics::CreateSaveGameObject(URA_SaveGame::StaticClass())))
+	{
+		// Set data on the savegame object.
+		SaveGameInstance->PlayerName = TEXT("PlayerOne");
+
+		SaveGameInstance->fPlayerHP = fPlayerHP;
+		SaveGameInstance->fMaxPlayerHP = fMaxPlayerHP;
+		SaveGameInstance->fPlayerMana = fPlayerMana;
+		SaveGameInstance->fMaxPlayerMana = fMaxPlayerMana;
+		SaveGameInstance->fPlayerStamina = fPlayerStamina;
+		SaveGameInstance->fMaxPlayerStamina = fMaxPlayerStamina;
+
+		SaveGameInstance->uiLevel = uiLevel;
+		SaveGameInstance->uiExperience = uiExperience;
+		SaveGameInstance->uiStrength = uiStrength;
+		SaveGameInstance->uiEndurance = uiEndurance;
+		SaveGameInstance->uiCharisma = uiCharisma;
+		SaveGameInstance->uiIntelligence = uiIntelligence;
+		SaveGameInstance->uiAgility = uiAgility;
+
+		ARacoonAdventureCharacter* PlayerControllerPtr = Cast<ARacoonAdventureCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+		SaveGameInstance->tPlayerLocation = PlayerControllerPtr->GetActorTransform();
+
+		// Save the data immediately.
+		if (UGameplayStatics::SaveGameToSlot(SaveGameInstance, SlotNameString, UserIndexInt32))
+		{
+			//UE_LOG(LogTemp, Warning, TEXT("Game saved to slot: %s:%d"), SlotNameString, UserIndexInt32);
+		}
+	}
+}
+
+void URacoonAdventureGameInstance::LoadSync(FString SlotNameString, int32 UserIndexInt32)
+{
+	if (URA_SaveGame* LoadedGame = Cast<URA_SaveGame>(UGameplayStatics::LoadGameFromSlot(SlotNameString, UserIndexInt32)))
+	{
+		fPlayerHP = LoadedGame->fPlayerHP;
+		fMaxPlayerHP = LoadedGame->fMaxPlayerHP;
+		fPlayerMana = LoadedGame->fPlayerMana;
+		fMaxPlayerMana = LoadedGame->fMaxPlayerMana;
+		fPlayerStamina = LoadedGame->fPlayerStamina;
+		fMaxPlayerStamina = LoadedGame->fMaxPlayerStamina;
+
+		uiLevel = LoadedGame->uiLevel;
+		uiExperience = LoadedGame->uiExperience;
+		uiStrength = LoadedGame->uiStrength;
+		uiEndurance = LoadedGame->uiEndurance;
+		uiCharisma = LoadedGame->uiCharisma;
+		uiIntelligence = LoadedGame->uiIntelligence;
+		uiAgility = LoadedGame->uiAgility;
+
+		ARacoonAdventureCharacter* PlayerControllerPtr = Cast<ARacoonAdventureCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+		PlayerControllerPtr->SetActorTransform(LoadedGame->tPlayerLocation);
+
+		// The operation was successful, so LoadedGame now contains the data we saved earlier.
+		//UE_LOG(LogTemp, Warning, TEXT("Game loaded from slot: %s"), *LoadedGame->PlayerName);
 	}
 }
