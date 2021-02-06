@@ -37,7 +37,7 @@ protected:
 
 	float fSphereRadius = 0.f;
 
-	float fDefaultDamage = 0.f;
+	float fDefaultDamage = 10.f;
 
 	float fLifetimeTime = 1.0f;
 

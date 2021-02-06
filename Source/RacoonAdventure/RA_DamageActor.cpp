@@ -14,8 +14,8 @@ ARA_DamageActor::ARA_DamageActor(const FObjectInitializer& ObjectInitializer) : 
 	PrimaryActorTick.bCanEverTick = true;
 
 	CapsuleCollision = ObjectInitializer.CreateDefaultSubobject<UCapsuleComponent>(this, FName("CollisionCapsule"));
-	//CapsuleCollision->SetCollisionProfileName(FName("Trigger"));
-	CapsuleCollision->SetCollisionEnabled(ECollisionEnabled::Type::PhysicsOnly);
+	CapsuleCollision->SetCollisionProfileName(FName("Trigger"));
+	//CapsuleCollision->SetCollisionEnabled(ECollisionEnabled::Type::PhysicsOnly);
 	CapsuleCollision->Mobility = EComponentMobility::Movable;
 	CapsuleCollision->OnComponentBeginOverlap.AddDynamic(this, &ARA_DamageActor::OnBoxBeginOverlap);
 	CapsuleCollision->AddWorldRotation(FRotator(90.f, 90.f, 90.f));
@@ -33,8 +33,8 @@ void ARA_DamageActor::InitializeDamage(FVector ImpulseDirection, float DefaultDa
 	fLifetimeTime = Lifetime;
 	CapsuleCollision->InitCapsuleSize(DamageRadius, DamageRadius * 2);
 
-	CapsuleCollision->SetSimulatePhysics(true);
-	CapsuleCollision->AddImpulse(ImpulseDirection * 50, NAME_None, true);
+	//CapsuleCollision->SetSimulatePhysics(true);
+	//CapsuleCollision->AddImpulse(ImpulseDirection * 50, NAME_None, true);
 	
 	GetWorld()->GetTimerManager().SetTimer(LifetimeTimer, [this]()
 	{
@@ -71,7 +71,7 @@ void ARA_DamageActor::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AAc
 	{
 
 		//Peredelat vse nahoi
-		if (!OtherActor->ActorHasTag("player") && !GetOwner()->ActorHasTag("player"))
+		//if (!OtherActor->ActorHasTag("player") && !GetOwner()->ActorHasTag("player"))
 		{
 			UGameplayStatics::ApplyDamage(OtherActor, fDefaultDamage, NULL, NULL, NULL);
 			Destroy();

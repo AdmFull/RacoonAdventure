@@ -77,7 +77,10 @@ protected:
 	// End of APawn interface
 
 	UFUNCTION()
-		void OnTakeAnyDamage(AActor* DamagedActor, float Damage, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, class AActor* DamageCauser) override;
+
+	UFUNCTION()
+		void OnAnimationFinished();
 
 	virtual void BeginPlay() override;
 
@@ -93,6 +96,8 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 
 private:
+	bool bCanSwitchAnimation = true;
+
 	FTimerHandle    AnimationDelayTimer;
 	FTimerHandle    ComboAttackTimer;
 	bool bIsSimpleAttacking;

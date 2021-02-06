@@ -78,6 +78,8 @@ ARacoonAdventureCharacter::ARacoonAdventureCharacter()
 	iSimpleComboState = -1;
 
 	PlayerState = EPlayerState::PLAYER_IDLE;
+
+	GetSprite()->OnFinishedPlaying.AddDynamic(this, &ARacoonAdventureCharacter::OnAnimationFinished);
 }
 
 void ARacoonAdventureCharacter::BeginPlay()
@@ -94,11 +96,7 @@ void ARacoonAdventureCharacter::BeginPlay()
 		}
 	}
 
-	/*FScriptDelegate DamageDelegate;
-	DamageDelegate.BindUFunction(this, FName("OnTakeAnyDamage"));
-	GetOwner()->OnTakeAnyDamage.AddUnique(DamageDelegate);*/
-
-	GetOwner()->OnTakeAnyDamage.AddDynamic(this, &ARacoonAdventureCharacter::OnTakeAnyDamage);
+	GetSprite()->SetLooping(true);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -155,6 +153,8 @@ void ARacoonAdventureCharacter::Tick(float DeltaSeconds)
 	fDeltaTime = DeltaSeconds;
 	UpdateCharacter();
 
+	cgiGameInstance->RegenerationHandler();
+
 	UWorld* CurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
 	if (CurWorld)
 	{
@@ -187,9 +187,17 @@ void ARacoonAdventureCharacter::SetupPlayerInputComponent(class UInputComponent*
 	PlayerInputComponent->BindTouch(IE_Released, this, &ARacoonAdventureCharacter::TouchStopped);
 }
 
-void ARacoonAdventureCharacter::OnTakeAnyDamage(AActor* DamagedActor, float Damage, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser)
+float ARacoonAdventureCharacter::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, class AActor* DamageCauser)
 {
-	float fuckMyBrain = Damage;
+	const float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	cgiGameInstance->AcceptPlayerDamage(DamageAmount);
+	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, "Damaged!");
+	return 0;
+}
+
+void ARacoonAdventureCharacter::OnAnimationFinished()
+{
+	float fuckMyBrain = 0.f;
 }
 
 void ARacoonAdventureCharacter::CharacterMoveLR(float Value)
@@ -242,7 +250,7 @@ void ARacoonAdventureCharacter::PlayerJump()
 	bool bTraceResult;
 	FHitResult hrPlatrofm;
 
-	if (!bIsClimbing)
+	if (!bIsClimbing && cgiGameInstance->IsStaminaEnought(5.f))
 	{
 		if (GetCharacterMovement()->IsCrouching())
 			UnCrouch();
@@ -258,13 +266,13 @@ void ARacoonAdventureCharacter::PlayerJump()
 			}
 			else
 			{
-				Jump();
+				if (JumpCurrentCount < JumpMaxCount)
+				{
+					Jump();
+					cgiGameInstance->WastePlayerStaminaIfPossible(5.f);
+				}
 				LedderMovingMode();
 			}
-		}
-		else
-		{
-
 		}
 	}
 }
@@ -273,7 +281,7 @@ void ARacoonAdventureCharacter::SimpleAttack()
 {
 	FVector vActorDirection;
 
-	if (bCanAttack)
+	if (bCanAttack && cgiGameInstance->WastePlayerStaminaIfPossible(20.f))
 	{
 		if (iSimpleComboState < 3)
 		{
@@ -382,15 +390,18 @@ void ARacoonAdventureCharacter::LedderMovingMode()
 
 void ARacoonAdventureCharacter::MakeJerk(float jerkForce)
 {
-	if (bCanJerk)
+	if (bCanJerk && cgiGameInstance->IsStaminaEnought(5.f))
 	{
 		if (iJerkState < 0) GetWorld()->GetTimerManager().SetTimer(JerkTimeoutTimer, [this]() { iJerkState = -1; }, 0.2f, 1);
 		if (++iJerkState > 0)
 		{
-			LaunchCharacter(FVector(jerkForce * fCharacterMoveDirection, 0.f, 0.f), false, true);
-			iJerkState = -1;
-			bCanJerk = false;
-			GetWorld()->GetTimerManager().SetTimer(CanJerkTimer, [this]() { bCanJerk = true; }, 0.6f, 1);
+			if (cgiGameInstance->WastePlayerStaminaIfPossible(5.f))
+			{
+				LaunchCharacter(FVector(jerkForce * fCharacterMoveDirection, 0.f, 0.f), false, true);
+				iJerkState = -1;
+				bCanJerk = false;
+				GetWorld()->GetTimerManager().SetTimer(CanJerkTimer, [this]() { bCanJerk = true; }, 0.6f, 1);
+			}
 		}
 	}
 }
@@ -442,16 +453,19 @@ bool ARacoonAdventureCharacter::TryWallJump()
 		{
 			if (GetCharacterMovement()->IsFalling())
 			{
-				bIsWallJumping = bPostWallJump = true;
-				vInWJLocation = vActorPosition;
-				if (vActorPosition.X > hrWall.GetActor()->GetActorLocation().X)
-					vInWJDirection = FVector(500.f, 0.f, 500.f);
-				else
-					vInWJDirection = FVector(-500.f, 0.f, 500.f);
+				if (cgiGameInstance->WastePlayerStaminaIfPossible(5.f))
+				{
+					bIsWallJumping = bPostWallJump = true;
+					vInWJLocation = vActorPosition;
+					if (vActorPosition.X > hrWall.GetActor()->GetActorLocation().X)
+						vInWJDirection = FVector(500.f, 0.f, 500.f);
+					else
+						vInWJDirection = FVector(-500.f, 0.f, 500.f);
 
-				LaunchCharacter(vInWJDirection, true, true);
-				bIsWallJumping = bPostWallJump = false;
-				return true;
+					LaunchCharacter(vInWJDirection, true, true);
+					bIsWallJumping = bPostWallJump = false;
+					return true;
+				}
 			}
 		}
 	}
