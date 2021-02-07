@@ -2,9 +2,9 @@
 
 
 #include "RacoonAdventureGameInstance.h"
-#include "RacoonAdventureCharacter.h"
+#include "../Character/RA_Character.h"
 #include "Kismet/GameplayStatics.h"
-#include "RA_SaveGame.h"
+#include "GameSave/RA_SaveGame.h"
 
 void URacoonAdventureGameInstance::Init()
 {
@@ -189,8 +189,14 @@ void URacoonAdventureGameInstance::SaveSync(FString SlotNameString, int32 UserIn
 		SaveGameInstance->uiIntelligence = uiIntelligence;
 		SaveGameInstance->uiAgility = uiAgility;
 
-		ARacoonAdventureCharacter* PlayerControllerPtr = Cast<ARacoonAdventureCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+		ARA_Character* PlayerControllerPtr = Cast<ARA_Character>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 		SaveGameInstance->tPlayerLocation = PlayerControllerPtr->GetActorTransform();
+
+		UWorld* CurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
+		if (IsValid(CurWorld))
+		{
+			SaveGameInstance->LevelName = CurWorld->GetCurrentLevel()->GetFName();
+		}
 
 		// Save the data immediately.
 		if (UGameplayStatics::SaveGameToSlot(SaveGameInstance, SlotNameString, UserIndexInt32))
@@ -219,7 +225,15 @@ void URacoonAdventureGameInstance::LoadSync(FString SlotNameString, int32 UserIn
 		uiIntelligence = LoadedGame->uiIntelligence;
 		uiAgility = LoadedGame->uiAgility;
 
-		ARacoonAdventureCharacter* PlayerControllerPtr = Cast<ARacoonAdventureCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+		UWorld* CurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
+		if (IsValid(CurWorld))
+		{
+			FLatentActionInfo LatentInfo;
+			UGameplayStatics::UnloadStreamLevel(this, CurWorld->GetCurrentLevel()->GetFName(), LatentInfo, true);
+			UGameplayStatics::LoadStreamLevel(this, LoadedGame->LevelName, true, true, LatentInfo);
+		}
+
+		ARA_Character* PlayerControllerPtr = Cast<ARA_Character>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 		PlayerControllerPtr->SetActorTransform(LoadedGame->tPlayerLocation);
 
 		// The operation was successful, so LoadedGame now contains the data we saved earlier.

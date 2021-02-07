@@ -56,7 +56,7 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = PlayerLocation)
 		FTransform tPlayerLocation;
 	UPROPERTY(VisibleAnywhere, Category = PlayerLocation)
-		int32 uiMapNumber;
+		FName LevelName;
 
     URA_SaveGame();
 };
