@@ -5,6 +5,7 @@
 #include "PaperFlipbookComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "../../Character/RA_Character.h"
 #include "DrawDebugHelpers.h"
 
 // Sets default values
@@ -69,9 +70,9 @@ void ARA_DamageActor::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AAc
 {
 	if ((OtherActor != nullptr) && (OtherActor != this) && (OtherComp != nullptr))
 	{
-
-		//Peredelat vse nahoi
-		//if (!OtherActor->ActorHasTag("player") && !GetOwner()->ActorHasTag("player"))
+		//Getting our character instance 
+		ARA_Character* CharacterPtr = Cast<ARA_Character>(OtherActor);
+		if (CharacterPtr)
 		{
 			UGameplayStatics::ApplyDamage(OtherActor, fDefaultDamage, NULL, NULL, NULL);
 			Destroy();
