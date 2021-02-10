@@ -6,6 +6,23 @@
 #include "GameFramework/Actor.h"
 #include "RA_InteractableActor.generated.h"
 
+//TODO: Remake ledder moving system using this kind of actor
+//TODO: -//- with wall jumping
+//TODO: -//- with flor platforms
+//TODO: Create chests with loot
+//TODO: Create interact with NPC
+//TODO: Create Factory method for this class
+
+UENUM()
+enum class EInteractionType : uint8
+{
+	EDefaultInteract,
+	ESaveGameInteract,
+	EChestInteract,
+	ENPCInteract,
+	EDamageInteract
+};
+
 UCLASS()
 class RACOONADVENTURE_API ARA_InteractableActor : public AActor
 {
@@ -16,6 +33,8 @@ public:
 	ARA_InteractableActor();
 
 protected:
+
+	EInteractionType eInteractionType;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Collision, meta = (AllowPrivateAccess = "true"))
 		class UBoxComponent* BoxCollisionComponent;

@@ -6,6 +6,8 @@
 // Sets default values
 ARA_InteractableActor::ARA_InteractableActor()
 {
+	eInteractionType = EInteractionType::EDefaultInteract;
+
 	BoxCollisionComponent = CreateDefaultSubobject<UBoxComponent>(FName("CollisionBox"), true);
 	BoxCollisionComponent->SetCollisionProfileName(FName("Trigger"));
 	BoxCollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &ARA_InteractableActor::OnBoxBeginOverlap);

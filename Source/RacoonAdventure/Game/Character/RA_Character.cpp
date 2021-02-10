@@ -10,6 +10,8 @@
 #include "Camera/CameraComponent.h"
 #include "../GameLogic/Actors/RA_DamageActor.h"
 #include "DrawDebugHelpers.h"
+#include "../GameLogic/Actors/RA_InteractableActor.h"
+#include "../GameLogic/Actors/RA_InteractableSaveActor.h"
 #include "Kismet/GameplayStatics.h"
 
 FName ARA_Character::SpriteComponentName(TEXT("Sprite0"));
@@ -192,6 +194,7 @@ void ARA_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	PlayerInputComponent->BindAction("MoveLeft", IE_Pressed, this, &ARA_Character::JerkLeft);
 	PlayerInputComponent->BindAction("MoveUp", IE_Pressed, this, &ARA_Character::JerkUp);
 	PlayerInputComponent->BindAction("MoveDown", IE_Pressed, this, &ARA_Character::JerkDown);
+	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &ARA_Character::Interact);
 	//PlayerInputComponent->BindAction("MoveDown", IE_Pressed, this, &URA_CharacterMovementComponent::ThroughTheFlor);
 	PlayerInputComponent->BindAxis("CharacterMoveLR", this, &ARA_Character::CharacterMoveLR);
 	PlayerInputComponent->BindAxis("CharacterMoveUD", this, &ARA_Character::CharacterMoveUD);
@@ -356,4 +359,26 @@ void ARA_Character::UpdateCharacter()
 ARacoonAdventureGameMode* ARA_Character::GetCurrentGamemode()
 {
 	return (ARacoonAdventureGameMode*)GetWorld()->GetAuthGameMode();
+}
+
+void ARA_Character::BeginInteract(AActor* InteractableActor)
+{
+	pInteractable = Cast<ARA_InteractableSaveActor>(InteractableActor);
+}
+
+void ARA_Character::EndInteract(AActor* InteractableActor)
+{
+	pInteractable = nullptr;
+}
+
+void ARA_Character::Interact()
+{
+	if (pInteractable)
+	{
+		if (GEngine)
+		{
+			pInteractable->OnInteract(this);
+			GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Interacting!"));
+		}
+	}
 }

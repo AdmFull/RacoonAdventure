@@ -5,6 +5,8 @@
 #include "RA_Character.h"
 #include "Kismet/GameplayStatics.h"
 
+//TODO: Remove this class
+
 URA_CharacterMovementComponent::URA_CharacterMovementComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

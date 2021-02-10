@@ -10,6 +10,11 @@
 #include "RA_CharacterMovementComponent.h"
 #include "RA_Character.generated.h"
 
+//TODO: Create default character class
+//TODO: Create player character based on default character
+//TODO: Create enemy based on default character
+//TODO: Create npc character based on default character
+
 UENUM(BlueprintType)
 enum class EPlayerState : uint8 {
 	PLAYER_DEFAULT,
@@ -100,6 +105,13 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	EPlayerState PlayerState;
+
+public:
+	void BeginInteract(AActor* InteractableActor);
+	void EndInteract(AActor* InteractableActor);
+	void Interact();
+
+	class ARA_InteractableSaveActor* pInteractable;
 
 private:
 

@@ -2,12 +2,15 @@
 
 
 #include "RA_InteractableSaveActor.h"
+#include "Factories/Factory.h"
 #include "../../Character/RA_Character.h"
 
 ARA_InteractableSaveActor::ARA_InteractableSaveActor(const FObjectInitializer& ObjectInitializer)
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+	eInteractionType = EInteractionType::ESaveGameInteract;
 }
 
 // Called when the game starts or when spawned
@@ -33,7 +36,7 @@ void ARA_InteractableSaveActor::OnBoxBeginOverlap(UPrimitiveComponent* Overlappe
 		ARA_Character* CharacterPtr = Cast<ARA_Character>(OtherActor);
 		if (CharacterPtr)
 		{
-			int i = 0;
+			CharacterPtr->BeginInteract(this);
 		}
 	}
 }
@@ -45,12 +48,24 @@ void ARA_InteractableSaveActor::OnBoxEndOverlap(UPrimitiveComponent* OverlappedC
 		ARA_Character* CharacterPtr = Cast<ARA_Character>(OtherActor);
 		if (CharacterPtr)
 		{
-			int i = 0;
+			CharacterPtr->EndInteract(this);
 		}
 	}
 }
 
 void ARA_InteractableSaveActor::OnInteract(AActor* Interructor)
 {
-
+	if (Interructor)
+	{
+		if (GEngine)
+		{
+			UWorld* CurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
+			if (CurWorld)
+			{
+				URacoonAdventureGameInstance* pGameInstance = Cast<URacoonAdventureGameInstance>(CurWorld->GetGameInstance());
+				pGameInstance->SaveSync("GameSave", 0);
+				GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Someone saving game!"));
+			}
+		}
+	}
 }
