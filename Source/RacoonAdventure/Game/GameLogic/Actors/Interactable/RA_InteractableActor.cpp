@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Components/BoxComponent.h"
 #include "RA_InteractableActor.h"
+#include "Components/BoxComponent.h"
 
 // Sets default values
 ARA_InteractableActor::ARA_InteractableActor()

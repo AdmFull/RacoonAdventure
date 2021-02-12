@@ -72,10 +72,10 @@ public:
 		void AddVerticalMovement(float Value);
 
 	UFUNCTION(BlueprintCallable, Category = Interaction)
-		void BeginInteract(AActor* InteractableActor);
+		void BeginInteract(class ARA_InteractableActor* InteractableActor);
 
 	UFUNCTION(BlueprintCallable, Category = Interaction)
-		void EndInteract(AActor* InteractableActor);
+		void EndInteract(class ARA_InteractableActor* InteractableActor);
 
 	UFUNCTION(BlueprintCallable, Category = Interaction)
 		void Interact();
@@ -103,6 +103,8 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	virtual void Tick(float DeltaTime) override;
+
 	virtual void PostInitializeComponents() override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animations)
@@ -127,7 +129,7 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = GameInstance)
 		class URacoonAdventureGameInstance* pGameInstance;
 
-	class ARA_LedderActor* pInteractable;
+	class ARA_InteractableActor* pInteractable;
 
 	EPlayerState PlayerState;
 

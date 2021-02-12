@@ -42,7 +42,7 @@ void ARA_LedderActor::OnBoxEndOverlap(UPrimitiveComponent* OverlappedComp, AActo
 	}
 }
 
-void ARA_LedderActor::OnInteract(AActor* Interructor)
+bool ARA_LedderActor::OnInteract(AActor* Interructor)
 {
 	if (Interructor)
 	{
@@ -65,12 +65,7 @@ void ARA_LedderActor::OnInteract(AActor* Interructor)
 					CharacterPtr->SetActorLocation(vNewActorLocation, true);
 					//bIsClimbingMove = true;
 
-					//If want to jump, check direction to jump
-					if (CharacterPtr->GetHorisontalDirection() != 0.f)
-					{
-						FVector vNewImpulse = FVector(100.f, 0.f, 0.f) * CharacterPtr->GetHorisontalDirection();
-						CharacterPtr->LaunchCharacter(vNewImpulse, true, true);
-					}
+					return true;
 				}
 			}
 			else
@@ -79,4 +74,5 @@ void ARA_LedderActor::OnInteract(AActor* Interructor)
 			}
 		}
 	}
+	return false;
 }

@@ -41,7 +41,7 @@ void ARA_WallJumpableActor::OnBoxEndOverlap(UPrimitiveComponent* OverlappedComp,
 	}
 }
 
-void ARA_WallJumpableActor::OnInteract(AActor* Interructor)
+bool ARA_WallJumpableActor::OnInteract(AActor* Interructor)
 {
 	if (Interructor)
 	{
@@ -61,8 +61,10 @@ void ARA_WallJumpableActor::OnInteract(AActor* Interructor)
 						vInWJDirection = FVector(-500.f, 0.f, 500.f);
 
 					CharacterPtr->LaunchCharacter(vInWJDirection, true, true);
+					return true;
 				}
 			}
 		}
 	}
+	return false;
 }

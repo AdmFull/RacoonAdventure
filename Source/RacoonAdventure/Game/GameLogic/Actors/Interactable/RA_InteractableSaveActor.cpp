@@ -53,7 +53,7 @@ void ARA_InteractableSaveActor::OnBoxEndOverlap(UPrimitiveComponent* OverlappedC
 	}
 }
 
-void ARA_InteractableSaveActor::OnInteract(AActor* Interructor)
+bool ARA_InteractableSaveActor::OnInteract(AActor* Interructor)
 {
 	if (Interructor)
 	{
@@ -64,7 +64,9 @@ void ARA_InteractableSaveActor::OnInteract(AActor* Interructor)
 			{
 				pGameInstance->SaveSync("GameSave", 0);
 				GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Someone saving game!"));
+				return true;
 			}
 		}
 	}
+	return false;
 }

@@ -28,8 +28,8 @@ ARA_BaseCharacter::ARA_BaseCharacter()
 	bUseControllerRotationRoll = false;
 
 	// Set the size of our collision capsule.
-	GetCapsuleComponent()->SetCapsuleHalfHeight(96.0f);
-	GetCapsuleComponent()->SetCapsuleRadius(40.0f);
+	GetCapsuleComponent()->SetCapsuleHalfHeight(15.0f);
+	GetCapsuleComponent()->SetCapsuleRadius(5.0f);
 
 	// Create a camera boom attached to the root (capsule)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -44,7 +44,7 @@ ARA_BaseCharacter::ARA_BaseCharacter()
 	// Create an orthographic camera (no perspective) and attach it to the boom
 	SideViewCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("SideViewCamera"));
 	SideViewCameraComponent->ProjectionMode = ECameraProjectionMode::Orthographic;
-	SideViewCameraComponent->OrthoWidth = 2048.0f;
+	SideViewCameraComponent->OrthoWidth = 800.0f;
 	SideViewCameraComponent->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 
 	// Prevent all automatic rotation behavior on the camera, character, and camera component
@@ -55,11 +55,16 @@ ARA_BaseCharacter::ARA_BaseCharacter()
 
 	// Configure character movement
 	GetCharacterMovement()->GravityScale = 2.0f;
-	GetCharacterMovement()->AirControl = 0.30f;
+	GetCharacterMovement()->MaxStepHeight = 15.0f;
+	GetCharacterMovement()->AirControl = 0.20f;
 	GetCharacterMovement()->JumpZVelocity = 400.f;
 	GetCharacterMovement()->GroundFriction = 3.0f;
 	GetCharacterMovement()->MaxWalkSpeed = 300.0f;
 	GetCharacterMovement()->MaxFlySpeed = 300.0f;
+	GetCharacterMovement()->MaxCustomMovementSpeed = 300.0f;
+
+	JumpMaxHoldTime = 0.1f;
+	JumpMaxCount = 2;
 
 	// Lock character motion onto the XZ plane, so the character can't move in or out of the screen
 	GetCharacterMovement()->bConstrainToPlane = true;
@@ -84,6 +89,7 @@ ARA_BaseCharacter::ARA_BaseCharacter()
 		Sprite->SetGenerateOverlapEvents(false);
 		// Enable replication on the Sprite component so animations show up when networked
 		Sprite->SetIsReplicated(true);
+		Sprite->AddRelativeLocation(FVector(0.f, 0.f, 2.f));
 	}
 }
 
@@ -102,6 +108,21 @@ void ARA_BaseCharacter::BeginPlay()
 	}
 
 	Sprite->SetLooping(true);
+}
+
+void ARA_BaseCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	UpdateCharacter();
+
+	pGameInstance->RegenerationHandler();
+
+	UWorld* CurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
+	if (CurWorld)
+	{
+		UCapsuleComponent* uCapComp = GetCapsuleComponent();
+		DrawDebugCapsule(CurWorld, uCapComp->GetCenterOfMass(), uCapComp->GetScaledCapsuleHalfHeight(), uCapComp->GetScaledCapsuleRadius(), uCapComp->GetComponentQuat(), FColor::Blue);
+	}
 }
 
 /****************************************************************************************************/
@@ -207,6 +228,14 @@ void ARA_BaseCharacter::AddVerticalMovement(float Value)
 {
 	fVerticalDirection = Value;
 	AddMovementInput(FVector(0.0f, 0.0f, 1.0f), Value);
+
+	if (pInteractable)
+	{
+		if (pInteractable->IsLedder())
+		{
+			pInteractable->OnInteract(this);
+		}
+	}
 }
 
 /****************************************************************************************************/
@@ -234,13 +263,21 @@ void ARA_BaseCharacter::PlayerJump()
 		if (GetCharacterMovement()->IsCrouching())
 			UnCrouch();
 
-		//Interact();
-		if (JumpCurrentCount < JumpMaxCount)
+		if (pInteractable)
 		{
-			Jump();
-			pGameInstance->WastePlayerStaminaIfPossible(1.f);
+			if (pInteractable->IsWallJump())
+			{
+				pInteractable->OnInteract(this);
+			}
 		}
-		//CMComp->LedderMovingMode();
+		else
+		{
+			if (JumpCurrentCount < JumpMaxCount)
+			{
+				Jump();
+				pGameInstance->WastePlayerStaminaIfPossible(1.f);
+			}
+		}
 	}
 }
 
@@ -328,15 +365,15 @@ void ARA_BaseCharacter::UpdateCharacter()
 /****************************************************************************************************/
 /****************************************************************************************************/
 /****************************************************************************************************/
-void ARA_BaseCharacter::BeginInteract(AActor* InteractableActor)
+void ARA_BaseCharacter::BeginInteract(ARA_InteractableActor* InteractableActor)
 {
-	pInteractable = Cast<ARA_LedderActor>(InteractableActor);
+	pInteractable = InteractableActor;
 }
 
 /****************************************************************************************************/
 /****************************************************************************************************/
 /****************************************************************************************************/
-void ARA_BaseCharacter::EndInteract(AActor* InteractableActor)
+void ARA_BaseCharacter::EndInteract(ARA_InteractableActor* InteractableActor)
 {
 	pInteractable = nullptr;
 }
@@ -348,6 +385,9 @@ void ARA_BaseCharacter::Interact()
 {
 	if (pInteractable)
 	{
-		pInteractable->OnInteract(this);
+		if (pInteractable->IsSaveGame())
+		{
+			pInteractable->OnInteract(this);
+		}
 	}
 }

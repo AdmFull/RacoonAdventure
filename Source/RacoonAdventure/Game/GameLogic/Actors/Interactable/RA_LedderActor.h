@@ -26,5 +26,5 @@ public:
 
 	virtual void OnBoxEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex) override;
 
-	virtual void OnInteract(AActor* OtherActor) override;
+	virtual bool OnInteract(AActor* OtherActor) override;
 };

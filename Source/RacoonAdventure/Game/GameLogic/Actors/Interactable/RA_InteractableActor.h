@@ -35,7 +35,6 @@ public:
 	// Sets default values for this actor's properties
 	ARA_InteractableActor();
 
-protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
@@ -66,6 +65,6 @@ protected:
 		virtual void OnBoxEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex) PURE_VIRTUAL(ARA_InteractableActor::OnBoxEndOverlap, );
 
 	UFUNCTION()
-		virtual void OnInteract(AActor* OtherActor) PURE_VIRTUAL(ARA_InteractableActor::OnInteract, );
+		virtual bool OnInteract(AActor* OtherActor) PURE_VIRTUAL(ARA_InteractableActor::OnInteract, return false; );
 
 };
