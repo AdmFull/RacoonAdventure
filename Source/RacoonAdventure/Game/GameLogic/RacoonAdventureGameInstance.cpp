@@ -2,7 +2,7 @@
 
 
 #include "RacoonAdventureGameInstance.h"
-#include "../Character/RA_Character.h"
+#include "../Character/RA_BaseCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameSave/RA_SaveGame.h"
 
@@ -189,7 +189,7 @@ void URacoonAdventureGameInstance::SaveSync(FString SlotNameString, int32 UserIn
 		SaveGameInstance->uiIntelligence = uiIntelligence;
 		SaveGameInstance->uiAgility = uiAgility;
 
-		ARA_Character* PlayerControllerPtr = Cast<ARA_Character>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+		ARA_BaseCharacter* PlayerControllerPtr = Cast<ARA_BaseCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 		SaveGameInstance->tPlayerLocation = PlayerControllerPtr->GetActorTransform();
 
 		UWorld* CurWorld = GEngine->GetWorldFromContextObject(this, EGetWorldErrorMode::LogAndReturnNull);
@@ -233,7 +233,7 @@ void URacoonAdventureGameInstance::LoadSync(FString SlotNameString, int32 UserIn
 			UGameplayStatics::LoadStreamLevel(this, LoadedGame->LevelName, true, true, LatentInfo);
 		}
 
-		ARA_Character* PlayerControllerPtr = Cast<ARA_Character>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+		ARA_BaseCharacter* PlayerControllerPtr = Cast<ARA_BaseCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 		PlayerControllerPtr->SetActorTransform(LoadedGame->tPlayerLocation);
 
 		// The operation was successful, so LoadedGame now contains the data we saved earlier.

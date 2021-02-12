@@ -17,6 +17,17 @@ enum class EPlayerStats : uint8 {
 	PLAYER_AGILITY
 };
 
+//Add character
+//Remove character (if dead)
+//Add game event
+
+/*USTRUCT()
+struct SEntity
+{
+	GENERATED_STRUCT_BODY()
+
+};*/
+
 /**
  * 
  */

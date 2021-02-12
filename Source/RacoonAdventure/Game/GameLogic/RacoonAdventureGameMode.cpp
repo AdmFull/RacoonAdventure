@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RacoonAdventureGameMode.h"
-#include "../Character/RA_Character.h"
+#include "../Character/RA_BaseCharacter.h"
 
 ARacoonAdventureGameMode::ARacoonAdventureGameMode()
 {
 	// Set default pawn class to our character
-	DefaultPawnClass = ARA_Character::StaticClass();
+	DefaultPawnClass = ARA_BaseCharacter::StaticClass();
 }
 
 void ARacoonAdventureGameMode::BeginPlay()
